@@ -17,6 +17,8 @@ settings:
 packages:
   UrbaneLibrary:
     path: UrbaneLibrary
+  WebExtractorKit:
+    path: ../jon-platform/packages/WebExtractorKit
 targets:
   Urbane:
     type: application
@@ -50,6 +52,8 @@ targets:
         product: UrbaneSchema
       - package: UrbaneLibrary
         product: UrbaneCore
+      - package: WebExtractorKit
+        product: WebExtractorKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.urbane

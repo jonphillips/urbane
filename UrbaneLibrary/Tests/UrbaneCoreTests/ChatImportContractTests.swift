@@ -15,6 +15,13 @@ import UrbaneSchema
     #expect(try ChatImportDecoder.decode(text).warning == nil)
   }
 
+  @Test func chapterParagraphsAndWhitespaceSurviveImportDecoding() throws {
+    let chapter = "Morning light on the stoops.\n\nAt night, the avenue stays lively.  "
+    let encoded = #"{"neighborhoods":[{"name":"Williamsburg","chapter":"Morning light on the stoops.\n\nAt night, the avenue stays lively.  ","vignettes":[]}],"buildings":[]}"#
+    let decoded = try ChatImportDecoder.decode(encoded)
+    #expect(decoded.neighborhoods[0].chapter == chapter)
+  }
+
   @Test func bareJSONWithoutMarkerWarns() throws {
     #expect(try ChatImportDecoder.decode(json()).warning?.contains("missing its contract marker") == true)
   }
@@ -59,6 +66,28 @@ import UrbaneSchema
 
   @Test func missingReviewURLFails() {
     #expect(throws: ChatImportError.self) { try ChatImportDecoder.decode(paste(review: #"{"source":"Openigloo","about":"building","rating":null,"outOf":null,"count":null,"newestReview":null,"summary":"Good maintenance."}"#)) }
+  }
+
+  @Test func nullReviewURLReportsItsExactLocation() {
+    let text = paste(review: #"{"source":"Openigloo","about":"building","url":null,"rating":null,"outOf":null,"count":null,"newestReview":null,"summary":"Good maintenance."}"#)
+    do {
+      _ = try ChatImportDecoder.decode(text)
+      Issue.record("Expected a null review URL to fail")
+    } catch {
+      #expect(error.localizedDescription.contains("buildings[0].reviews[0].url"))
+      #expect(error.localizedDescription.contains("required, got null"))
+    }
+  }
+
+  @Test func missingBuildingSummaryReportsItsExactLocation() {
+    let text = json().replacingOccurrences(of: #""summary":"Courtyard building.","status""#, with: #""status""#)
+    do {
+      _ = try ChatImportDecoder.decode(text)
+      Issue.record("Expected a missing building summary to fail")
+    } catch {
+      #expect(error.localizedDescription.contains("buildings[0].summary"))
+      #expect(error.localizedDescription.contains("required, got missing"))
+    }
   }
 
   @Test func repeatedReviewSourceAndSubjectInOneBuildingFails() {

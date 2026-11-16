@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-16 — M1 S4 + S5 — Building postcard and neighborhood chapters (`m1/s4-building-postcard`)
+
+- **Result:** Added a swipeable building postcard and editable neighborhood chapters, region fixes, plus field-specific import decoding errors.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, 33 Urbane tests, and the iOS build-for-testing gate.
+- **Owed:** M1 S4 + S5's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-16 — M1 · S2 and S3 device passes
 
 - **Result:** Both gates passed on Jon's iPad. **S2:** 420 Kent Avenue was added to the map. **S3:** a full seed (11 neighborhoods, 20 buildings, about 50 vignettes) resolved and imported with no throttle errors after the search-pacing effort. A second paste added one Openigloo review to The Ashland.

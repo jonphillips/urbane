@@ -87,9 +87,47 @@ public enum ChatImportDecoder {
       )
     } catch let error as ChatImportError {
       throw error
+    } catch let error as DecodingError {
+      throw decodingFailure(error)
     } catch {
       throw ChatImportError.invalidPaste(error.localizedDescription)
     }
+  }
+
+  private static func decodingFailure(_ error: DecodingError) -> ChatImportError {
+    let path: [any CodingKey]
+    let reason: String
+    switch error {
+    case let .keyNotFound(key, context):
+      path = context.codingPath + [key]
+      reason = "required, got missing"
+    case let .valueNotFound(type, context):
+      path = context.codingPath
+      reason = "required, got null (expected \(typeName(type)))"
+    case let .typeMismatch(type, context):
+      path = context.codingPath
+      reason = "expected \(typeName(type)), got wrong type"
+    case let .dataCorrupted(context):
+      path = context.codingPath
+      reason = "invalid value"
+    @unknown default:
+      path = []
+      reason = "invalid value"
+    }
+    let location = path.reduce(into: "") { result, key in
+      if let index = key.intValue {
+        result += "[\(index)]"
+      } else if result.isEmpty {
+        result = key.stringValue
+      } else {
+        result += ".\(key.stringValue)"
+      }
+    }
+    return .invalidRow(path: location.isEmpty ? "root" : location, reason: reason)
+  }
+
+  private static func typeName(_ type: Any.Type) -> String {
+    String(describing: type)
   }
 
   private static func validateKeys(in data: Data) throws {

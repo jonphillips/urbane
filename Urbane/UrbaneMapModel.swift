@@ -15,6 +15,8 @@ final class UrbaneMapModel {
   @ObservationIgnored @FetchAll(Search.all) var searches
   @ObservationIgnored @FetchAll(Neighborhood.order(by: \.name)) var neighborhoods
   @ObservationIgnored @FetchAll(Building.order(by: \.name)) var buildings
+  @ObservationIgnored @FetchAll(NeighborhoodVignette.all) var neighborhoodVignettes
+  @ObservationIgnored @FetchAll(BuildingVignette.all) var buildingVignettes
   @ObservationIgnored @FetchAll(BuildingReview.all) var reviews
 
   private var didBootstrap = false
@@ -82,6 +84,96 @@ final class UrbaneMapModel {
     }
   }
 
+  func updateNeighborhoodChapter(_ neighborhood: Neighborhood, chapter: String) {
+    withErrorReporting {
+      try database.write { db in
+        try Neighborhood.find(neighborhood.id).update { $0.chapter = #bind(chapter) }.execute(db)
+      }
+    }
+  }
+
+  func updateNeighborhoodRegion(
+    _ neighborhood: Neighborhood, latitude: Double, longitude: Double,
+    latitudeSpan: Double, longitudeSpan: Double
+  ) {
+    withErrorReporting {
+      try database.write { db in
+        try Neighborhood.find(neighborhood.id).update {
+          $0.centerLatitude = #bind(latitude)
+          $0.centerLongitude = #bind(longitude)
+          $0.latitudeSpan = #bind(latitudeSpan)
+          $0.longitudeSpan = #bind(longitudeSpan)
+        }.execute(db)
+      }
+    }
+  }
+
+  func addBuildingVignette(building: Building, place: PlaceMatch, caption: String) {
+    withErrorReporting {
+      try database.write { db in
+        try BuildingVignette.insert {
+          BuildingVignette(
+            id: uuid(), buildingID: building.id, placeName: place.name,
+            latitude: place.latitude, longitude: place.longitude,
+            mapItemIdentifier: place.mapItemIdentifier, caption: caption,
+            sortOrder: buildingVignettes.filter { $0.buildingID == building.id }.count
+          )
+        }.execute(db)
+      }
+    }
+  }
+
+  func updateBuildingVignette(_ vignette: BuildingVignette, place: PlaceMatch, caption: String) {
+    withErrorReporting {
+      try database.write { db in
+        try BuildingVignette.find(vignette.id).update {
+          $0.placeName = #bind(place.name)
+          $0.latitude = #bind(place.latitude)
+          $0.longitude = #bind(place.longitude)
+          $0.mapItemIdentifier = #bind(place.mapItemIdentifier)
+          $0.caption = #bind(caption)
+        }.execute(db)
+      }
+    }
+  }
+
+  func deleteBuildingVignette(_ vignette: BuildingVignette) {
+    withErrorReporting {
+      try database.write { db in
+        try BuildingVignette.find(vignette.id).delete().execute(db)
+        let remaining = buildingVignettes
+          .filter { $0.buildingID == vignette.buildingID && $0.id != vignette.id }
+          .sorted { $0.sortOrder < $1.sortOrder }
+        for (index, row) in remaining.enumerated() {
+          try BuildingVignette.find(row.id).update { $0.sortOrder = #bind(index) }.execute(db)
+        }
+      }
+    }
+  }
+
+  func moveBuildingVignettes(buildingID: UUID, from source: IndexSet, to destination: Int) {
+    var rows = buildingVignettes.filter { $0.buildingID == buildingID }.sorted { $0.sortOrder < $1.sortOrder }
+    let moving = source.map { rows[$0] }
+    rows = rows.enumerated().filter { !source.contains($0.offset) }.map(\.element)
+    let adjustedDestination = destination - source.filter { $0 < destination }.count
+    rows.insert(contentsOf: moving, at: adjustedDestination)
+    withErrorReporting {
+      try database.write { db in
+        for (index, row) in rows.enumerated() {
+          try BuildingVignette.find(row.id).update { $0.sortOrder = #bind(index) }.execute(db)
+        }
+      }
+    }
+  }
+
+  func updateHeroImage(_ building: Building, image: Data) {
+    withErrorReporting {
+      try database.write { db in
+        try Building.find(building.id).update { $0.heroImage = #bind(image) }.execute(db)
+      }
+    }
+  }
+
   func fixLocation(_ building: Building, match: PlaceMatch) {
     withErrorReporting {
       try database.write { db in
@@ -126,9 +218,9 @@ final class UrbaneMapModel {
           }
         } else {
           try Neighborhood.insert {
-            Neighborhood(id: neighborhoodID, searchID: search.id, name: incoming.name, chapter: incoming.chapter ?? "", centerLatitude: place.latitude, centerLongitude: place.longitude, latitudeSpan: 0.06, longitudeSpan: 0.06, sortOrder: neighborhoods.count)
+            Neighborhood(id: neighborhoodID, searchID: search.id, name: incoming.name, chapter: incoming.chapter ?? "", centerLatitude: place.latitude, centerLongitude: place.longitude, latitudeSpan: 0.02, longitudeSpan: 0.02, sortOrder: neighborhoods.count)
           }.execute(db)
-          neighborhoods.append(Neighborhood(id: neighborhoodID, searchID: search.id, name: incoming.name, chapter: incoming.chapter ?? "", centerLatitude: place.latitude, centerLongitude: place.longitude, latitudeSpan: 0.06, longitudeSpan: 0.06, sortOrder: neighborhoods.count))
+          neighborhoods.append(Neighborhood(id: neighborhoodID, searchID: search.id, name: incoming.name, chapter: incoming.chapter ?? "", centerLatitude: place.latitude, centerLongitude: place.longitude, latitudeSpan: 0.02, longitudeSpan: 0.02, sortOrder: neighborhoods.count))
         }
         for (vIndex, vignette) in incoming.vignettes.enumerated() {
           guard let vignettePlace = resolutions["n\(index)v\(vIndex)"] else {
