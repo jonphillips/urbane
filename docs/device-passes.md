@@ -9,7 +9,11 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
 
 ## Owed now
 
-*(nothing yet)*
+- **M1 S2:** Jon adds 420 Kent Avenue on the iPad, by search or by placing the pin by hand
+  ([M1](milestones/M1-browse.md#s2--the-map-and-adding-buildings-by-hand)).
+- **M1 S3:** Jon pastes one real seed from a Claude or ChatGPT project using `docs/chat-contract.md`,
+  copied without fences, with Openigloo reviews for at least one building
+  ([M1](milestones/M1-browse.md#s3--import-from-chat)).
 
 ## Held
 
