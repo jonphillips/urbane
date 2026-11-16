@@ -19,6 +19,7 @@ final class UrbaneMapModel {
 
   private var didBootstrap = false
   var message: String?
+  var placeSearchWaitingFor: Duration?
 
   func bootstrap() {
     guard !didBootstrap else { return }
@@ -31,10 +32,16 @@ final class UrbaneMapModel {
     }
   }
 
-  func search(_ query: String) async throws -> [PlaceMatch] { try await placeSearch.search(query) }
+  func search(_ query: String) async throws -> [PlaceMatch] {
+    try await placeSearch.search(query) { [weak self] duration in
+      await MainActor.run { self?.placeSearchWaitingFor = duration }
+    }
+  }
 
   func resolveSearchRow(_ query: String) async throws -> PlaceSearchRowResolution {
-    try await PlaceSearchRows.resolve(query: query, using: placeSearch)
+    try await PlaceSearchRows.resolve(query: query, using: placeSearch) { [weak self] duration in
+      await MainActor.run { self?.placeSearchWaitingFor = duration }
+    }
   }
 
   func addNeighborhood(name: String, match: PlaceMatch, latitudeSpan: Double, longitudeSpan: Double) {

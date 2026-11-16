@@ -19,12 +19,40 @@ public struct PlaceMatch: Equatable, Sendable, Identifiable {
   }
 }
 
+/// A monotonic clock boundary used by the shared place-search pacer.
+public struct PlaceSearchClock: Sendable {
+  public var now: @Sendable () async -> Duration
+  public var sleep: @Sendable (Duration) async throws -> Void
+
+  public init(
+    now: @escaping @Sendable () async -> Duration,
+    sleep: @escaping @Sendable (Duration) async throws -> Void
+  ) {
+    self.now = now
+    self.sleep = sleep
+  }
+
+  public static func live(_ clock: ContinuousClock = ContinuousClock()) -> Self {
+    let origin = clock.now
+    return Self(
+      now: { clock.now - origin },
+      sleep: { try await clock.sleep(for: $0) }
+    )
+  }
+}
+
 /// The one place-search boundary shared by manual entry and chat import.
 public struct PlaceSearchClient: Sendable {
-  public var search: @Sendable (String) async throws -> [PlaceMatch]
+  public var search: @Sendable (String, @escaping @Sendable (Duration?) async -> Void) async throws -> [PlaceMatch]
 
   public init(search: @escaping @Sendable (String) async throws -> [PlaceMatch]) {
-    self.search = search
+    self.search = { query, _ in try await search(query) }
+  }
+
+  public init(
+    searchWithProgress: @escaping @Sendable (String, @escaping @Sendable (Duration?) async -> Void) async throws -> [PlaceMatch]
+  ) {
+    self.search = searchWithProgress
   }
 }
 
@@ -35,9 +63,13 @@ public enum PlaceSearchRowResolution: Equatable, Sendable {
 
 /// Turns a place lookup failure into a row-level review result without losing other rows.
 public enum PlaceSearchRows {
-  public static func resolve(query: String, using client: PlaceSearchClient) async throws -> PlaceSearchRowResolution {
+  public static func resolve(
+    query: String,
+    using client: PlaceSearchClient,
+    onWaiting: @escaping @Sendable (Duration?) async -> Void = { _ in }
+  ) async throws -> PlaceSearchRowResolution {
     do {
-      return .matches(try await client.search(query))
+      return .matches(try await client.search(query, onWaiting))
     } catch is CancellationError {
       throw CancellationError()
     } catch {
@@ -61,44 +93,167 @@ public enum PlaceSearchFailureDisposition: Equatable, Sendable {
   }
 }
 
-extension PlaceSearchClient: DependencyKey {
-  public static let liveValue = PlaceSearchClient { query in
-    let response: MKLocalSearch.Response
-    var attempt = 0
+/// Serializes the app's place searches and enforces Apple's request budget.
+public actor PlaceSearchPacer {
+  // Apple's limit is 50 requests per 60 seconds. A 45 request budget reserves five
+  // requests for searches outside this client (50 - 45) within that same window.
+  private static let maximumSearches = 45
+  private static let window: Duration = .seconds(60)
+  // 60 seconds / 45 searches = 1.333… seconds; round up to milliseconds to
+  // preserve headroom at the boundary while distributing a full seed over time.
+  private static let minimumInterval: Duration = .milliseconds(1_334)
+  private static let throttleWait: Duration = .seconds(60)
+  private static let maximumThrottleWaits = 3
+
+  private let clock: PlaceSearchClock
+  private var searchTimes: [Duration] = []
+  private var isRunningSearch = false
+  private var waiters: [(UUID, CheckedContinuation<Void, any Error>)] = []
+
+  public init(clock: PlaceSearchClock) {
+    self.clock = clock
+  }
+
+  public func search(
+    query: String,
+    using operation: @escaping @Sendable (String) async throws -> [PlaceMatch],
+    onWaiting: @escaping @Sendable (Duration?) async -> Void = { _ in }
+  ) async throws -> [PlaceMatch] {
+    try await acquire()
+    defer { release() }
+
+    var throttleWaits = 0
     while true {
+      try await waitForSlot(onWaiting: onWaiting)
+      do {
+        return try await operation(query)
+      } catch {
+        switch Self.disposition(for: error) {
+        case .noMatch:
+          return []
+        case .throttled where throttleWaits < Self.maximumThrottleWaits:
+          throttleWaits += 1
+          try await wait(Self.throttleWait, onWaiting: onWaiting)
+        case .throttled, .other:
+          throw error
+        }
+      }
+    }
+  }
+
+  private func waitForSlot(onWaiting: @escaping @Sendable (Duration?) async -> Void) async throws {
+    while true {
+      try Task.checkCancellation()
+      let now = await clock.now()
+      searchTimes.removeAll { now - $0 >= Self.window }
+      let intervalWait = searchTimes.last.map { max(.zero, $0 + Self.minimumInterval - now) } ?? .zero
+      let windowWait: Duration
+      if searchTimes.count >= Self.maximumSearches, let oldest = searchTimes.first {
+        windowWait = max(.zero, oldest + Self.window - now)
+      } else {
+        windowWait = .zero
+      }
+      let waitDuration = max(intervalWait, windowWait)
+      guard waitDuration <= .zero else {
+        try await wait(waitDuration, onWaiting: onWaiting)
+        continue
+      }
+      guard searchTimes.count < Self.maximumSearches else {
+        continue
+      }
+      searchTimes.append(now)
+      await onWaiting(nil)
+      return
+    }
+  }
+
+  private func wait(
+    _ duration: Duration,
+    onWaiting: @escaping @Sendable (Duration?) async -> Void
+  ) async throws {
+    try Task.checkCancellation()
+    await onWaiting(duration)
+    do {
+      try await clock.sleep(duration)
+      try Task.checkCancellation()
+      await onWaiting(nil)
+    } catch is CancellationError {
+      await onWaiting(nil)
+      throw CancellationError()
+    }
+  }
+
+  private func acquire() async throws {
+    guard isRunningSearch else {
+      isRunningSearch = true
+      return
+    }
+
+    let id = UUID()
+    _ = try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+        if Task.isCancelled {
+          continuation.resume(throwing: CancellationError())
+        } else {
+          waiters.append((id, continuation))
+        }
+      }
+    } onCancel: {
+      Task { await self.cancelWaiter(id) }
+    }
+    guard !Task.isCancelled else {
+      release()
+      throw CancellationError()
+    }
+  }
+
+  private func release() {
+    if waiters.isEmpty {
+      isRunningSearch = false
+    } else {
+      waiters.removeFirst().1.resume()
+    }
+  }
+
+  private func cancelWaiter(_ id: UUID) {
+    guard let index = waiters.firstIndex(where: { $0.0 == id }) else { return }
+    waiters.remove(at: index).1.resume(throwing: CancellationError())
+  }
+
+  private static func disposition(for error: any Error) -> PlaceSearchFailureDisposition {
+    let nsError = error as NSError
+    return PlaceSearchFailureDisposition.classify(domain: nsError.domain, code: nsError.code)
+  }
+}
+
+extension PlaceSearchClient: DependencyKey {
+  public static let liveValue: Self = {
+    let pacer = PlaceSearchPacer(clock: .live())
+    let search: @Sendable (String) async throws -> [PlaceMatch] = { query in
       var request = MKLocalSearch.Request()
       request.naturalLanguageQuery = query
       request.region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -73.94),
         span: MKCoordinateSpan(latitudeDelta: 0.48, longitudeDelta: 0.72)
       )
-      do {
-        response = try await MKLocalSearch(request: request).start()
-        break
-      } catch {
-        let nsError = error as NSError
-        switch PlaceSearchFailureDisposition.classify(domain: nsError.domain, code: nsError.code) {
-        case .noMatch: return []
-        case .throttled where attempt < 2:
-          attempt += 1
-          try await Task.sleep(for: .milliseconds(250 * attempt))
-        case .throttled, .other: throw error
-        }
+      let response = try await MKLocalSearch(request: request).start()
+      return response.mapItems.compactMap { item in
+        let coordinate = item.location.coordinate
+        guard NYC.contains(coordinate.latitude, coordinate.longitude) else { return nil }
+        let address = item.addressRepresentations?.fullAddress(includingRegion: true, singleLine: true) ?? ""
+        return PlaceMatch(
+          name: item.name ?? address,
+          address: address,
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+          mapItemIdentifier: item.identifier?.rawValue
+        )
       }
     }
-    return response.mapItems.compactMap { item in
-      let coordinate = item.location.coordinate
-      guard NYC.contains(coordinate.latitude, coordinate.longitude) else { return nil }
-      let address = item.addressRepresentations?.fullAddress(includingRegion: true, singleLine: true) ?? ""
-      return PlaceMatch(
-        name: item.name ?? address,
-        address: address,
-        latitude: coordinate.latitude,
-        longitude: coordinate.longitude,
-        mapItemIdentifier: item.identifier?.rawValue
-      )
-    }
-  }
+    return PlaceSearchClient(searchWithProgress: { query, onWaiting in
+      try await pacer.search(query: query, using: search, onWaiting: onWaiting)
+    })
+  }()
 
   public static let testValue = PlaceSearchClient { _ in [] }
 }
