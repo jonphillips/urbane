@@ -75,7 +75,17 @@ Jon swipes through five real buildings and fixes at least one view that faced th
 
 A neighborhood screen: the chapter text (editable as a plain multi-line field), 3–5 vignettes, its
 buildings, and the rent placeholder. Tapping a neighborhood region on the map opens it.
-**Done when:** an imported chapter keeps its paragraphs exactly as written (ADR-0004).
+
+Plus three map fixes from Jon's first real seed (2026-11-16):
+- **Smaller regions.** Import gives every neighborhood a fixed 0.06° span, about a 3 km circle, so 11
+  neighborhoods blanket the map. Import and Add neighborhood both default to 0.02°.
+- **Fix location for a neighborhood**, on its screen, as buildings have: re-run the search, or set the
+  center and span by hand. "Fulton / Seaport" resolved to Brooklyn's Fulton Street.
+- **One label per neighborhood.** The map shows each name twice, because the `Annotation` title renders
+  under the custom label. Hide the title.
+
+**Done when:** an imported chapter keeps its paragraphs exactly as written (ADR-0004), and a
+neighborhood's region can be moved and resized from its screen.
 
 ### S6 — Rent numbers and commutes
 
