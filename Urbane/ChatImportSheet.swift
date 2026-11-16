@@ -69,15 +69,25 @@ struct ChatImportSheet: View {
           }
         }
       }
-      let knownNames = Set(paste.neighborhoods.map { UrbaneMapModel.normalize($0.name) })
-      let ungrouped = Array(paste.buildings.enumerated().filter { !knownNames.contains(UrbaneMapModel.normalize($0.element.neighborhood)) })
+      let declaredNames = Set(paste.neighborhoods.map { UrbaneMapModel.normalize($0.name) })
+      let existingGroups = model.neighborhoods.filter { neighborhood in
+        !declaredNames.contains(UrbaneMapModel.normalize(neighborhood.name))
+          && paste.buildings.contains { UrbaneMapModel.normalize($0.neighborhood) == UrbaneMapModel.normalize(neighborhood.name) }
+      }
+      ForEach(existingGroups) { neighborhood in
+        Section(neighborhood.name) {
+          Text("Neighborhood · already in Urbane")
+          ForEach(Array(paste.buildings.enumerated().filter { UrbaneMapModel.normalize($0.element.neighborhood) == UrbaneMapModel.normalize(neighborhood.name) }), id: \.offset) { buildingIndex, building in
+            buildingReview(building, index: buildingIndex)
+          }
+        }
+      }
+      let ungrouped = Array(paste.buildings.enumerated().filter {
+        !declaredNames.contains(UrbaneMapModel.normalize($0.element.neighborhood)) && existingNeighborhood($0.element.neighborhood) == nil
+      })
       if !ungrouped.isEmpty {
         Section("Unresolved neighborhood") {
           ForEach(ungrouped, id: \.offset) { index, building in buildingReview(building, index: index) }
-          let otherNames = Array(Set(ungrouped.map { $0.element.neighborhood })).sorted()
-          ForEach(otherNames.filter { existingNeighborhood($0) != nil }, id: \.self) { name in
-            resolutionRow("x\(UrbaneMapModel.normalize(name))", title: "Resolve neighborhood · \(name)")
-          }
         }
       }
       Section {
@@ -154,11 +164,8 @@ struct ChatImportSheet: View {
       let validBuildingNeighborhoods = Set(decoded.buildings.map(\.neighborhood).filter {
         declared.contains(UrbaneMapModel.normalize($0)) || existingNeighborhood($0) != nil
       }.map(UrbaneMapModel.normalize))
-      let otherNames = Set(decoded.buildings.map(\.neighborhood).filter {
-        !declared.contains(UrbaneMapModel.normalize($0)) && existingNeighborhood($0) != nil
-      })
       totalPlaces = decoded.neighborhoods.count + decoded.neighborhoods.reduce(0) { $0 + $1.vignettes.count }
-        + decoded.buildings.filter { validBuildingNeighborhoods.contains(UrbaneMapModel.normalize($0.neighborhood)) }.count + otherNames.count
+        + decoded.buildings.filter { validBuildingNeighborhoods.contains(UrbaneMapModel.normalize($0.neighborhood)) }.count
       resolvedPlaces = 0
       rowErrors = [:]
       for (index, neighborhood) in decoded.neighborhoods.enumerated() {
@@ -189,12 +196,6 @@ struct ChatImportSheet: View {
             nextReviewReplacements.insert("b\(index)r\(reviewIndex)")
           }
         }
-      }
-      for name in otherNames {
-        let key = "x\(UrbaneMapModel.normalize(name))"
-        let matches = try await searchRow("\(name), New York, NY", key: key)
-        nextChoices[key] = matches
-        if matches.count == 1 { nextIDs[key] = matches[0].id }
       }
       choices = nextChoices
       selectedIDs = nextIDs
@@ -236,7 +237,9 @@ struct ChatImportSheet: View {
   }
 
   private func hasAllResolutions(_ paste: ChatImportPaste) -> Bool {
-    choices.count > 0 && choices.allSatisfy { key, matches in
+    (!paste.neighborhoods.isEmpty || !paste.buildings.isEmpty)
+      && (choices.count > 0 || paste.buildings.indices.allSatisfy { skipped.contains("b\($0)") })
+      && choices.allSatisfy { key, matches in
       skipped.contains(key) || (!matches.isEmpty && matches.contains(where: { $0.id == selectedIDs[key] }))
     } && paste.neighborhoods.enumerated().allSatisfy { index, n in
       (selectedIDs["n\(index)"] != nil || skipped.contains("n\(index)")) && n.vignettes.indices.allSatisfy { selectedIDs["n\(index)v\($0)"] != nil || skipped.contains("n\(index)v\($0)") }
@@ -245,9 +248,7 @@ struct ChatImportSheet: View {
         || existingNeighborhood(building.neighborhood) != nil
       if known { return selectedIDs["b\(index)"] != nil || skipped.contains("b\(index)") }
       return skipped.contains("b\(index)")
-    } && Set(paste.buildings.map(\.neighborhood).map(UrbaneMapModel.normalize).filter { name in
-      !paste.neighborhoods.contains(where: { UrbaneMapModel.normalize($0.name) == name }) && existingNeighborhood(name) != nil
-    }).allSatisfy { name in selectedIDs["x\(name)"] != nil || skipped.contains("x\(name)") }
+    }
   }
 
   private func existingNeighborhood(_ name: String) -> Neighborhood? {
