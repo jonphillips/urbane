@@ -48,6 +48,8 @@ targets:
     dependencies:
       - package: UrbaneLibrary
         product: UrbaneSchema
+      - package: UrbaneLibrary
+        product: UrbaneCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.urbane

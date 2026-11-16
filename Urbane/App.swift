@@ -13,7 +13,7 @@ struct UrbaneApp: App {
 
   var body: some Scene {
     WindowGroup {
-      ImageryProofView()
+      MapHomeView()
     }
   }
 }

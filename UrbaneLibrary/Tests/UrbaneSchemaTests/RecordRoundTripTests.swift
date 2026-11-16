@@ -51,6 +51,12 @@ func m1RecordsRoundTripThroughTheirTables() throws {
     id: UUID(), buildingID: building.id, personID: person.id, image: Data([0xCA, 0xFE]),
     caption: "Visit photo", dateTaken: timestamp
   )
+  let buildingReview = BuildingReview(
+    id: UUID(), buildingID: building.id, source: "Openigloo", subject: .landlord,
+    sourceURL: "https://example.com/reviews", rating: 4.2, ratingScale: 5,
+    reviewCount: 19, newestReviewMonth: "2026-09", summary: "Responsive repairs.",
+    gatheredAt: timestamp
+  )
 
   try database.write { db in
     try Search.insert { Search.Draft(search) }.execute(db)
@@ -64,6 +70,7 @@ func m1RecordsRoundTripThroughTheirTables() throws {
     try RentObservation.insert { RentObservation.Draft(rentObservation) }.execute(db)
     try Reaction.insert { Reaction.Draft(reaction) }.execute(db)
     try Photo.insert { Photo.Draft(photo) }.execute(db)
+    try BuildingReview.insert { BuildingReview.Draft(buildingReview) }.execute(db)
   }
 
   try database.read { db in
@@ -78,6 +85,7 @@ func m1RecordsRoundTripThroughTheirTables() throws {
     let savedRentObservation = try RentObservation.find(rentObservation.id).fetchOne(db)
     let savedReaction = try Reaction.find(reaction.id).fetchOne(db)
     let savedPhoto = try Photo.find(photo.id).fetchOne(db)
+    let savedBuildingReview = try BuildingReview.find(buildingReview.id).fetchOne(db)
 
     #expect(savedSearch == search)
     #expect(savedPerson == person)
@@ -90,5 +98,6 @@ func m1RecordsRoundTripThroughTheirTables() throws {
     #expect(savedRentObservation == rentObservation)
     #expect(savedReaction == reaction)
     #expect(savedPhoto == photo)
+    #expect(savedBuildingReview == buildingReview)
   }
 }

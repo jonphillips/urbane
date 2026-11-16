@@ -114,9 +114,9 @@ the building has at least one Tuesday stop.
 
 ## Ledger
 
-- [ ] S1 — Scaffold and the imagery proof
-- [ ] S2 — The map and adding buildings by hand
-- [ ] S3 — Import from chat
+- [x] S1 — Scaffold and the imagery proof
+- [x] S2 — The map and adding buildings by hand
+- [x] S3 — Import from chat
 - [ ] S4 — The building postcard
 - [ ] S5 — Neighborhood chapters
 - [ ] S6 — Rent numbers and commutes
