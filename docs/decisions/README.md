@@ -8,3 +8,4 @@ Settled Urbane choices, one line each. General house decisions live in jon-platf
 - [0004](0004-words-are-ours.md) — The words are ours: chapters and "A Tuesday here" are authored, not generated.
 - [0005](0005-shareable-graph.md) — The shareable graph.
 - [0006](0006-import-from-chat.md) — Import from chat: one paste carries a seed in, resolved on device and reviewed.
+- [0007](0007-building-reviews-from-chat.md) — What renters say: building reviews come in through the chat, dated and sourced.

@@ -21,6 +21,7 @@ Any second relationship is a **loose UUID** column.
 | `rentObservations` | `buildingID` | | rent, unit, square feet, date seen, source URL |
 | `reactions` | `buildingID` | `personID` | rating 1–5, favorite, note. One row per (building, person) |
 | `photos` | `buildingID` | `personID` | BLOB, caption, date taken. (Visits are M3; photos are cheap now) |
+| `buildingReviews` | `buildingID` | | source, `subject` enum, source URL, rating and scale, review count, newest review month, summary, gathered date (ADR-0007; added in S3) |
 
 - **Vignettes are two tables, not one with two parents.** A neighborhood vignette and a building
   vignette never move between parents, so separate tables keep the single-FK rule without loose links.
@@ -30,7 +31,7 @@ Any second relationship is a **loose UUID** column.
 - **`destination`** is an enum of five: SoHo, Tribeca, West Village, Lower East Side, Midtown, each with a
   fixed representative coordinate in code.
 - **Logical uniqueness** (one reaction per building and person, one commute per building and
-  destination, one rent row per neighborhood and month) uses the house's upsert plus dedup-on-read,
+  destination, one rent row per neighborhood and month, one review row per building, source and subject) uses the house's upsert plus dedup-on-read,
   with a stable survivor order.
 - **Local-only, never synced:** the rendered snapshot cache (ADR-0002) and "this device is me"
   (`@Shared(.appStorage)`).
