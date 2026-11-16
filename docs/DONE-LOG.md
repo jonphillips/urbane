@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-16 — M1 · S2 and S3 device passes
+
+- **Result:** Both gates passed on Jon's iPad. **S2:** 420 Kent Avenue was added to the map. **S3:** a full seed (11 neighborhoods, 20 buildings, about 50 vignettes) resolved and imported with no throttle errors after the search-pacing effort. A second paste added one Openigloo review to The Ashland.
+- **Verification:** The review was synthetic, so this confirms the review import path, not a real Openigloo read. It can't be seen in the app until S4's "What renters say", and S4's gate confirms it. A real Openigloo review comes with Jon's next research session. Found during the pass and folded into S5 and the next dispatch: oversized neighborhood regions, Fulton / Seaport resolving to Brooklyn, doubled map labels, and decode errors that don't name their field.
+
 ## 2026-11-16 — Paced and retried Apple Maps place searches (`effort/import-search-pacing`)
 
 - **Result:** Place searches now share a sequential rolling-window pacer, wait out MapKit throttles, and resolve imported neighborhoods and buildings before vignettes. Failed import rows can be retried from review while preserving the user’s review choices.
