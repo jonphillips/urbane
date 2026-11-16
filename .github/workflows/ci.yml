@@ -12,6 +12,4 @@ jobs:
     uses: jonphillips/ci-workflows/.github/workflows/ios-ci.yml@main
     with:
       package-path: UrbaneLibrary
-      test-runner: macos-26
-      min-swift: "6.4"
     secrets: inherit

@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import UrbaneImaging
 
 private struct SeedAddress: Identifiable {
   let id: Int
@@ -13,18 +12,18 @@ struct ImageryProofView: View {
     SeedAddress(id: 1, title: "One North Fourth", address: "1 North 4th Place, Brooklyn, NY 11249"),
     SeedAddress(id: 2, title: "420 Kent Avenue", address: "420 Kent Avenue, Brooklyn, NY 11249"),
     SeedAddress(id: 3, title: "The Oosten", address: "429 Kent Avenue, Brooklyn, NY 11249"),
-    SeedAddress(id: 4, title: "One Blue Slip", address: "1 Blue Slip, Brooklyn, NY 11222"),
+    SeedAddress(id: 4, title: "189 North 12th Street", address: "189 North 12th Street, Brooklyn, NY 11249"),
     SeedAddress(id: 5, title: "5-26 47th Avenue", address: "5-26 47th Avenue, Long Island City, NY 11101"),
     SeedAddress(id: 6, title: "4545 Center Boulevard", address: "4545 Center Boulevard, Long Island City, NY 11109"),
-    SeedAddress(id: 7, title: "The Forge", address: "41-41 27th Street, Long Island City, NY 11101"),
-    SeedAddress(id: 8, title: "Court Square", address: "25-01 Jackson Avenue, Long Island City, NY 11101"),
+    SeedAddress(id: 7, title: "46-30 Center Boulevard", address: "46-30 Center Boulevard, Long Island City, NY 11109"),
+    SeedAddress(id: 8, title: "41-41 27th Street", address: "41-41 27th Street, Long Island City, NY 11101"),
   ]
 
   var body: some View {
     NavigationStack {
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 20) {
-          Text("Look Around scenes and the same angled 3D map view, requested from MapKit for each address.")
+          Text("MapKit matches, Look Around scenes, realistic 3D maps, and hybrid alternatives for each address.")
             .foregroundStyle(.secondary)
           ForEach(seeds) { seed in
             ImageryProofRow(seed: seed)
@@ -40,7 +39,7 @@ struct ImageryProofView: View {
 private struct ImageryProofRow: View {
   let seed: SeedAddress
   @State private var imagery: ImageryPair?
-  private let client = UrbaneImageryClient.live
+  private let client = UrbaneImageryClient()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -48,13 +47,34 @@ private struct ImageryProofRow: View {
         Text(seed.title).font(.headline)
         Text(seed.address).font(.subheadline).foregroundStyle(.secondary)
       }
+      if let imagery {
+        VStack(alignment: .leading, spacing: 3) {
+          Text("MapKit match: \(imagery.matchedName ?? "No match")")
+          if let latitude = imagery.matchedLatitude, let longitude = imagery.matchedLongitude {
+            Text(String(format: "%.5f, %.5f", latitude, longitude))
+          }
+          Text(imagery.matchKind ?? imagery.searchError ?? "")
+            .foregroundStyle(.secondary)
+        }
+        .font(.caption)
+      }
       HStack(alignment: .top, spacing: 12) {
-        ImageryProofImage(title: "Look Around", image: imagery?.lookAround, error: imagery?.lookAroundError)
-        ImageryProofImage(title: "Angled 3D", image: imagery?.angledMap, error: imagery?.angledMapError)
+        ImageryProofImage(
+          title: "Look Around", image: imagery?.lookAround,
+          error: imagery?.lookAroundError ?? imagery?.searchError
+        )
+        ImageryProofImage(
+          title: "Realistic 3D", image: imagery?.standard3D,
+          error: imagery?.standard3DError ?? imagery?.searchError
+        )
+        ImageryProofImage(
+          title: "Realistic Hybrid", image: imagery?.hybrid3D,
+          error: imagery?.hybrid3DError ?? imagery?.searchError
+        )
       }
     }
     .task {
-      imagery = await client.preview(seed.address)
+      imagery = await client.preview(placeName: seed.title, address: seed.address)
     }
   }
 }

@@ -53,7 +53,7 @@ public enum UrbaneDatabaseMigrations {
       "name" TEXT NOT NULL DEFAULT '', "address" TEXT NOT NULL DEFAULT '',
       "latitude" REAL NOT NULL DEFAULT 0, "longitude" REAL NOT NULL DEFAULT 0,
       "summary" TEXT NOT NULL DEFAULT '', "status" INTEGER NOT NULL DEFAULT 0,
-      "rejectionReason" TEXT, "streetEasyURL" TEXT, "website" TEXT, "heroImage" BLOB
+      "rejectionReason" TEXT, "streetEasyURL" TEXT, "websiteURL" TEXT, "heroImage" BLOB
     ) STRICT
     """,
     "CREATE INDEX index_buildings_on_neighborhoodID ON buildings(neighborhoodID)",
@@ -74,7 +74,7 @@ public enum UrbaneDatabaseMigrations {
       "placeName" TEXT NOT NULL DEFAULT '', "latitude" REAL NOT NULL DEFAULT 0,
       "longitude" REAL NOT NULL DEFAULT 0, "mapItemIdentifier" TEXT,
       "caption" TEXT NOT NULL DEFAULT '', "sortOrder" INTEGER NOT NULL DEFAULT 0,
-      "tuesdayPart" TEXT
+      "tuesdayPart" INTEGER
     ) STRICT
     """,
     "CREATE INDEX index_buildingVignettes_on_buildingID ON buildingVignettes(buildingID)",
@@ -82,7 +82,7 @@ public enum UrbaneDatabaseMigrations {
     CREATE TABLE "commutes" (
       "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
       "buildingID" TEXT NOT NULL REFERENCES "buildings"("id") ON DELETE CASCADE,
-      "destination" TEXT NOT NULL DEFAULT 'soho', "transitSeconds" INTEGER NOT NULL DEFAULT 0,
+      "destination" INTEGER NOT NULL, "transitSeconds" INTEGER NOT NULL DEFAULT 0,
       "computedAt" TEXT NOT NULL
     ) STRICT
     """,

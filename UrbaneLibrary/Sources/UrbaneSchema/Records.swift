@@ -8,11 +8,11 @@ public enum BuildingStatus: Int, QueryBindable, CaseIterable, Sendable {
   case rejected = 3
 }
 
-public enum TuesdayPart: String, QueryBindable, CaseIterable, Sendable {
-  case morning
-  case commute
-  case evening
-  case walk
+public enum TuesdayPart: Int, QueryBindable, CaseIterable, Sendable {
+  case morning = 0
+  case commute = 1
+  case dinner = 2
+  case eveningWalk = 3
 }
 
 public struct GeoCoordinate: Equatable, Sendable {
@@ -25,12 +25,12 @@ public struct GeoCoordinate: Equatable, Sendable {
   }
 }
 
-public enum CommuteDestination: String, QueryBindable, CaseIterable, Sendable {
-  case soho
-  case tribeca
-  case westVillage
-  case lowerEastSide
-  case midtown
+public enum CommuteDestination: Int, QueryBindable, CaseIterable, Sendable {
+  case soho = 0
+  case tribeca = 1
+  case westVillage = 2
+  case lowerEastSide = 3
+  case midtown = 4
 
   /// Representative routing anchors at the centers of the named work destinations.
   public var coordinate: GeoCoordinate {
@@ -57,7 +57,7 @@ public struct Search: Identifiable, Equatable, Sendable {
   }
 }
 
-@Table
+@Table("people")
 public struct Person: Identifiable, Equatable, Sendable {
   public let id: UUID
   public var searchID: Search.ID
@@ -135,14 +135,14 @@ public struct Building: Identifiable, Equatable, Sendable {
   public var status: BuildingStatus = .exploring
   public var rejectionReason: String?
   public var streetEasyURL: String?
-  public var website: String?
+  public var websiteURL: String?
   public var heroImage: Data?
 
   public init(
     id: UUID, neighborhoodID: Neighborhood.ID, name: String = "", address: String = "",
     latitude: Double = 0, longitude: Double = 0, summary: String = "",
     status: BuildingStatus = .exploring, rejectionReason: String? = nil,
-    streetEasyURL: String? = nil, website: String? = nil, heroImage: Data? = nil
+    streetEasyURL: String? = nil, websiteURL: String? = nil, heroImage: Data? = nil
   ) {
     self.id = id
     self.neighborhoodID = neighborhoodID
@@ -154,7 +154,7 @@ public struct Building: Identifiable, Equatable, Sendable {
     self.status = status
     self.rejectionReason = rejectionReason
     self.streetEasyURL = streetEasyURL
-    self.website = website
+    self.websiteURL = websiteURL
     self.heroImage = heroImage
   }
 }
@@ -218,12 +218,12 @@ public struct BuildingVignette: Identifiable, Equatable, Sendable {
 public struct Commute: Identifiable, Equatable, Sendable {
   public let id: UUID
   public var buildingID: Building.ID
-  public var destination: CommuteDestination = .soho
+  public var destination: CommuteDestination
   public var transitSeconds = 0
   public var computedAt: Date
 
   public init(
-    id: UUID, buildingID: Building.ID, destination: CommuteDestination = .soho,
+    id: UUID, buildingID: Building.ID, destination: CommuteDestination,
     transitSeconds: Int = 0, computedAt: Date
   ) {
     self.id = id

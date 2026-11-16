@@ -17,9 +17,6 @@ settings:
 packages:
   UrbaneLibrary:
     path: UrbaneLibrary
-  GRDB.swift:
-    url: https://github.com/groue/GRDB.swift
-    from: 7.6.0
 targets:
   Urbane:
     type: application
@@ -51,27 +48,11 @@ targets:
     dependencies:
       - package: UrbaneLibrary
         product: UrbaneSchema
-      - package: UrbaneLibrary
-        product: UrbaneImaging
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.urbane
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Urbane/Urbane.entitlements
-  UrbaneTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources:
-      - path: UrbaneTests
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-    dependencies:
-      - target: Urbane
-      - package: UrbaneLibrary
-        product: UrbaneSchema
-      - package: GRDB.swift
-        product: GRDB
 schemes:
   Urbane:
     build:
@@ -79,7 +60,3 @@ schemes:
         Urbane: all
     run:
       config: Debug
-    test:
-      config: Debug
-      targets:
-        - UrbaneTests
