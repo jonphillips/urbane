@@ -48,7 +48,8 @@ ADR-0006, all of it: a paste sheet, marker check, strict decode, on-device resol
 neighborhood and vignette, the bulk review (new, already in Urbane, unresolved; chapter keep/replace), and
 a single-transaction write that fills only empty fields. Plus ADR-0007's reviews: a second migration adding
 `buildingReviews`, the strict review decode, and review rows in the bulk review (new, or old → new for a
-replacement).
+replacement). And a third migration adding `buildings.mapItemIdentifier`
+(ADR-0005), which the identifier-first match reads.
 **Done when:** decoding, matching (by map item identifier, then normalized address) and "fill only
 empty fields" are unit-tested in `UrbaneLibrary` against fixture pastes. The fixtures include a missing
 marker, a newer marker, an unknown status, a rejected building with no reason, and a re-import over

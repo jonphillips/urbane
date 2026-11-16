@@ -1,7 +1,8 @@
 # ADR-0006: Import from chat — one paste carries a seed into Urbane, resolved and reviewed
 
 *Status: proposed — 2026-11-16. Follows Galavant's trip-seed handoff (Galavant ADR-0048) and uses
-`LLMHandoffKit`'s contract marker. Adds one column (`buildings.summary`, ADR-0005).*
+`LLMHandoffKit`'s contract marker. Adds two columns (`buildings.summary` and
+`buildings.mapItemIdentifier`, ADR-0005).*
 
 ## Context
 
@@ -42,9 +43,10 @@ name a building that doesn't exist. The import has to catch that, not trust it.
 5. **One bulk review, nothing saved until Import.** It's grouped by neighborhood, with chapters
    collapsed and readable, and buildings marked as new, already in Urbane, or unresolved. Import writes
    everything in one transaction.
-6. **Re-import is safe.** An existing building is matched by map item identifier, then by normalized
-   address. An import fills **only empty fields**. It never overwrites a chapter, summary, status or
-   anything we edited. Where a chapter already exists, the review offers "keep ours / replace" per
+6. **Re-import is safe.** An existing building is matched by map item identifier
+   (`buildings.mapItemIdentifier`, ADR-0005), then by normalized address. A building matched by
+   address with no identifier gets the resolved one, since it's an empty field. An import fills
+   **only empty fields**. It never overwrites a chapter, summary, status or anything we edited. Where a chapter already exists, the review offers "keep ours / replace" per
    neighborhood, defaulting to keep. A rejection never gets reversed by an import. The one exception
    is reviews, which replace by source and subject (ADR-0007): they're other people's words, not ours.
 7. **What the chat's words become:** `chapter` → the neighborhood's chapter, a building's `summary` →
