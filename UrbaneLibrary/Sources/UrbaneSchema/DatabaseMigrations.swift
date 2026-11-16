@@ -8,6 +8,22 @@ public enum UrbaneDatabaseMigrations {
         try db.execute(sql: statement)
       }
     }
+    migrator.registerMigration("Add building reviews") { db in
+      try db.execute(sql: """
+        CREATE TABLE "buildingReviews" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "buildingID" TEXT NOT NULL REFERENCES "buildings"("id") ON DELETE CASCADE,
+          "source" TEXT NOT NULL DEFAULT '', "subject" INTEGER NOT NULL,
+          "sourceURL" TEXT NOT NULL DEFAULT '', "rating" REAL, "ratingScale" REAL,
+          "reviewCount" INTEGER, "newestReviewMonth" TEXT,
+          "summary" TEXT NOT NULL DEFAULT '', "gatheredAt" TEXT NOT NULL
+        ) STRICT
+        """)
+      try db.execute(sql: "CREATE INDEX index_buildingReviews_on_buildingID ON buildingReviews(buildingID)")
+    }
+    migrator.registerMigration("Add building map item identifier") { db in
+      try db.execute(sql: "ALTER TABLE \"buildings\" ADD COLUMN \"mapItemIdentifier\" TEXT")
+    }
     return migrator
   }
 

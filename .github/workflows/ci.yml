@@ -12,4 +12,5 @@ jobs:
     uses: jonphillips/ci-workflows/.github/workflows/ios-ci.yml@main
     with:
       package-path: UrbaneLibrary
+      platform-relative-root: ../..
     secrets: inherit

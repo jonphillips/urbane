@@ -15,6 +15,11 @@ public enum TuesdayPart: Int, QueryBindable, CaseIterable, Sendable {
   case eveningWalk = 3
 }
 
+public enum BuildingReviewSubject: Int, QueryBindable, CaseIterable, Sendable {
+  case building = 0
+  case landlord = 1
+}
+
 public struct GeoCoordinate: Equatable, Sendable {
   public var latitude: Double
   public var longitude: Double
@@ -131,6 +136,7 @@ public struct Building: Identifiable, Equatable, Sendable {
   public var address = ""
   public var latitude = 0.0
   public var longitude = 0.0
+  public var mapItemIdentifier: String?
   public var summary = ""
   public var status: BuildingStatus = .exploring
   public var rejectionReason: String?
@@ -140,7 +146,7 @@ public struct Building: Identifiable, Equatable, Sendable {
 
   public init(
     id: UUID, neighborhoodID: Neighborhood.ID, name: String = "", address: String = "",
-    latitude: Double = 0, longitude: Double = 0, summary: String = "",
+    latitude: Double = 0, longitude: Double = 0, mapItemIdentifier: String? = nil, summary: String = "",
     status: BuildingStatus = .exploring, rejectionReason: String? = nil,
     streetEasyURL: String? = nil, websiteURL: String? = nil, heroImage: Data? = nil
   ) {
@@ -150,6 +156,7 @@ public struct Building: Identifiable, Equatable, Sendable {
     self.address = address
     self.latitude = latitude
     self.longitude = longitude
+    self.mapItemIdentifier = mapItemIdentifier
     self.summary = summary
     self.status = status
     self.rejectionReason = rejectionReason
@@ -299,5 +306,39 @@ public struct Photo: Identifiable, Equatable, Sendable {
     self.image = image
     self.caption = caption
     self.dateTaken = dateTaken
+  }
+}
+
+@Table
+public struct BuildingReview: Identifiable, Equatable, Sendable {
+  public let id: UUID
+  public var buildingID: Building.ID
+  public var source = ""
+  public var subject: BuildingReviewSubject
+  public var sourceURL = ""
+  public var rating: Double?
+  public var ratingScale: Double?
+  public var reviewCount: Int?
+  public var newestReviewMonth: String?
+  public var summary = ""
+  public var gatheredAt: Date
+
+  public init(
+    id: UUID, buildingID: Building.ID, source: String = "",
+    subject: BuildingReviewSubject, sourceURL: String = "", rating: Double? = nil,
+    ratingScale: Double? = nil, reviewCount: Int? = nil, newestReviewMonth: String? = nil,
+    summary: String = "", gatheredAt: Date
+  ) {
+    self.id = id
+    self.buildingID = buildingID
+    self.source = source
+    self.subject = subject
+    self.sourceURL = sourceURL
+    self.rating = rating
+    self.ratingScale = ratingScale
+    self.reviewCount = reviewCount
+    self.newestReviewMonth = newestReviewMonth
+    self.summary = summary
+    self.gatheredAt = gatheredAt
   }
 }
