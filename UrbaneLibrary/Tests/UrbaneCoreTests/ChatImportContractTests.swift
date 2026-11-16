@@ -51,11 +51,26 @@ import UrbaneSchema
       address: incoming.address, summary: "Our edited note", status: .rejected,
       rejectionReason: "Too noisy"
     )
-    #expect(ChatImportReconciliation.matchingBuilding(address: "1 north 4th place brooklyn ny 11249", among: [edited])?.id == edited.id)
-    #expect(ChatImportReconciliation.fillEmptyFields(of: edited, from: incoming) == BuildingFill(
-      summary: nil, streetEasyURL: nil, websiteURL: nil, rejectionReason: nil
+    #expect(ChatImportReconciliation.matchingBuilding(mapItemIdentifier: nil, address: "1 north 4th place brooklyn ny 11249", among: [edited])?.id == edited.id)
+    #expect(ChatImportReconciliation.fillEmptyFields(of: edited, from: incoming, mapItemIdentifier: "resolved-id") == BuildingFill(
+      summary: nil, mapItemIdentifier: "resolved-id", streetEasyURL: nil, websiteURL: nil, rejectionReason: nil
     ))
     #expect(edited.status == .rejected)
+  }
+
+  @Test func buildingReimportMatchesMapIdentifierBeforeAddressAndFillsAnEmptyIdentifier() throws {
+    let incoming = try ChatImportDecoder.decode(paste()).buildings[0]
+    let place = PlaceMatch(name: "New place name", address: incoming.address, latitude: 40.71, longitude: -73.96, mapItemIdentifier: "map-item-1")
+    let identifierMatch = Building(
+      id: UUID(), neighborhoodID: UUID(), name: "Same place", address: "A stale address",
+      mapItemIdentifier: "map-item-1"
+    )
+    let addressMatch = Building(
+      id: UUID(), neighborhoodID: UUID(), name: "Same address", address: incoming.address
+    )
+    #expect(ChatImportReconciliation.matchingBuilding(mapItemIdentifier: place.mapItemIdentifier, address: incoming.address, among: [identifierMatch, addressMatch])?.id == identifierMatch.id)
+    #expect(ChatImportReconciliation.matchingBuilding(mapItemIdentifier: "new-id", address: incoming.address, among: [addressMatch])?.id == addressMatch.id)
+    #expect(ChatImportReconciliation.fillEmptyFields(of: addressMatch, from: incoming, mapItemIdentifier: place.mapItemIdentifier).mapItemIdentifier == "map-item-1")
   }
 
   @Test func reviewReimportReplacesSelectedReviewAndKeepsOtherSources() throws {

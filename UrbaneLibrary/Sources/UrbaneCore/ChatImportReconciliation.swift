@@ -3,12 +3,14 @@ import UrbaneSchema
 
 public struct BuildingFill: Equatable, Sendable {
   public var summary: String?
+  public var mapItemIdentifier: String?
   public var streetEasyURL: String?
   public var websiteURL: String?
   public var rejectionReason: String?
 
-  public init(summary: String?, streetEasyURL: String?, websiteURL: String?, rejectionReason: String?) {
+  public init(summary: String?, mapItemIdentifier: String?, streetEasyURL: String?, websiteURL: String?, rejectionReason: String?) {
     self.summary = summary
+    self.mapItemIdentifier = mapItemIdentifier
     self.streetEasyURL = streetEasyURL
     self.websiteURL = websiteURL
     self.rejectionReason = rejectionReason
@@ -22,14 +24,23 @@ public enum ChatImportReconciliation {
       .split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: " ")
   }
 
-  public static func matchingBuilding(address: String, among buildings: [Building]) -> Building? {
+  public static func matchingBuilding(
+    mapItemIdentifier: String?, address: String, among buildings: [Building]
+  ) -> Building? {
+    if let mapItemIdentifier,
+      let identifierMatch = buildings.first(where: { $0.mapItemIdentifier == mapItemIdentifier }) {
+      return identifierMatch
+    }
     let normalized = normalizedAddress(address)
     return buildings.first { normalizedAddress($0.address) == normalized }
   }
 
-  public static func fillEmptyFields(of existing: Building, from incoming: ChatBuilding) -> BuildingFill {
+  public static func fillEmptyFields(
+    of existing: Building, from incoming: ChatBuilding, mapItemIdentifier: String?
+  ) -> BuildingFill {
     BuildingFill(
       summary: isEmpty(existing.summary) ? incoming.summary : nil,
+      mapItemIdentifier: isEmpty(existing.mapItemIdentifier) ? mapItemIdentifier : nil,
       streetEasyURL: isEmpty(existing.streetEasyURL) ? incoming.streetEasyURL : nil,
       websiteURL: isEmpty(existing.websiteURL) ? incoming.website : nil,
       rejectionReason: existing.status == .rejected && isEmpty(existing.rejectionReason) ? incoming.rejectionReason : nil

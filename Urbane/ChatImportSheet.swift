@@ -86,7 +86,8 @@ struct ChatImportSheet: View {
   }
 
   @ViewBuilder private func buildingReview(_ building: ChatBuilding, index: Int) -> some View {
-    let existing = existingBuilding(building.address)
+    let match = selectedPlace("b\(index)")
+    let existing = existingBuilding(building.address, mapItemIdentifier: match?.mapItemIdentifier)
     VStack(alignment: .leading, spacing: 8) {
       Text("\(building.name) · \(existing == nil ? "new" : "already in Urbane")").font(.headline)
       Text("\(building.address) · \(String(describing: building.status))").font(.footnote).foregroundStyle(.secondary)
@@ -154,7 +155,8 @@ struct ChatImportSheet: View {
         let key = "b\(index)"
         nextChoices[key] = matches
         if matches.count == 1 { nextIDs[key] = matches[0].id }
-        let oldBuilding = existingBuilding(building.address)
+        let chosenMatch = matches.first { $0.id == nextIDs[key] }
+        let oldBuilding = existingBuilding(building.address, mapItemIdentifier: chosenMatch?.mapItemIdentifier)
         for (reviewIndex, review) in building.reviews.enumerated() {
           if let oldBuilding, model.reviews.contains(where: { $0.buildingID == oldBuilding.id && $0.source == review.source && $0.subject == (review.subject == .building ? .building : .landlord) }) {
             nextReviewReplacements.insert("b\(index)r\(reviewIndex)")
@@ -202,11 +204,35 @@ struct ChatImportSheet: View {
   private func existingNeighborhood(_ name: String) -> Neighborhood? {
     model.neighborhoods.first { UrbaneMapModel.normalize($0.name) == UrbaneMapModel.normalize(name) }
   }
-  private func existingBuilding(_ address: String) -> Building? {
-    model.buildings.first { UrbaneMapModel.normalize($0.address) == UrbaneMapModel.normalize(address) }
+  private func existingBuilding(_ address: String, mapItemIdentifier: String? = nil) -> Building? {
+    ChatImportReconciliation.matchingBuilding(
+      mapItemIdentifier: mapItemIdentifier, address: address, among: model.buildings
+    )
+  }
+  private func selectedPlace(_ key: String) -> PlaceMatch? {
+    guard let id = selectedIDs[key] else { return nil }
+    return choices[key]?.first { $0.id == id }
   }
   private func idBinding(_ key: String) -> Binding<String> {
-    Binding(get: { selectedIDs[key] ?? "" }, set: { selectedIDs[key] = $0 })
+    Binding(get: { selectedIDs[key] ?? "" }, set: { value in
+      selectedIDs[key] = value
+      if key.hasPrefix("b"), let index = Int(key.dropFirst()) { setReviewDefaults(forBuildingAt: index) }
+    })
+  }
+  private func setReviewDefaults(forBuildingAt index: Int) {
+    guard let paste, paste.buildings.indices.contains(index) else { return }
+    let building = paste.buildings[index]
+    let existing = existingBuilding(building.address, mapItemIdentifier: selectedPlace("b\(index)")?.mapItemIdentifier)
+    for reviewIndex in building.reviews.indices {
+      let key = "b\(index)r\(reviewIndex)"
+      replaceReviews.remove(key)
+      guard let existing else { continue }
+      let incoming = building.reviews[reviewIndex]
+      let subject: BuildingReviewSubject = incoming.subject == .building ? .building : .landlord
+      if model.reviews.contains(where: { $0.buildingID == existing.id && $0.source == incoming.source && $0.subject == subject }) {
+        replaceReviews.insert(key)
+      }
+    }
   }
   private func chapterBinding(_ index: Int) -> Binding<Bool> {
     Binding(get: { replaceChapters.contains(index) }, set: { value in if value { replaceChapters.insert(index) } else { replaceChapters.remove(index) } })

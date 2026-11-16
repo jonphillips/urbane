@@ -21,6 +21,9 @@ public enum UrbaneDatabaseMigrations {
         """)
       try db.execute(sql: "CREATE INDEX index_buildingReviews_on_buildingID ON buildingReviews(buildingID)")
     }
+    migrator.registerMigration("Add building map item identifier") { db in
+      try db.execute(sql: "ALTER TABLE \"buildings\" ADD COLUMN \"mapItemIdentifier\" TEXT")
+    }
     return migrator
   }
 

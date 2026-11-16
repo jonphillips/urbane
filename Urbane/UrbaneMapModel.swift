@@ -62,6 +62,7 @@ final class UrbaneMapModel {
             id: uuid(), neighborhoodID: neighborhoodID, name: name,
             address: address.isEmpty ? match.address : address,
             latitude: match.latitude, longitude: match.longitude,
+            mapItemIdentifier: match.mapItemIdentifier,
             summary: summary, status: status, rejectionReason: rejectionReason,
             streetEasyURL: streetEasyURL, websiteURL: websiteURL
           )
@@ -76,6 +77,7 @@ final class UrbaneMapModel {
         try Building.find(building.id).update {
           $0.latitude = #bind(match.latitude)
           $0.longitude = #bind(match.longitude)
+          $0.mapItemIdentifier = #bind(match.mapItemIdentifier)
           if !match.address.isEmpty { $0.address = #bind(match.address) }
         }.execute(db)
       }
@@ -137,21 +139,26 @@ final class UrbaneMapModel {
         guard let neighborhoodID = neighborhoodIDs[Self.normalize(incoming.neighborhood)] ?? neighborhoods.first(where: { Self.normalize($0.name) == Self.normalize(incoming.neighborhood) })?.id else {
           throw ChatImportError.invalidRow(path: "buildings[\(index)]", reason: "neighborhood is unresolved")
         }
-        let existing = ChatImportReconciliation.matchingBuilding(address: incoming.address, among: buildings)
+        let existing = ChatImportReconciliation.matchingBuilding(
+          mapItemIdentifier: place.mapItemIdentifier, address: incoming.address, among: buildings
+        )
         let buildingID = existing?.id ?? uuid()
         if let existing {
-          let fill = ChatImportReconciliation.fillEmptyFields(of: existing, from: incoming)
+          let fill = ChatImportReconciliation.fillEmptyFields(
+            of: existing, from: incoming, mapItemIdentifier: place.mapItemIdentifier
+          )
           try Building.find(existing.id).update {
             if let value = fill.summary { $0.summary = #bind(value) }
+            if let value = fill.mapItemIdentifier { $0.mapItemIdentifier = #bind(value) }
             if let value = fill.streetEasyURL { $0.streetEasyURL = #bind(value) }
             if let value = fill.websiteURL { $0.websiteURL = #bind(value) }
             if let value = fill.rejectionReason { $0.rejectionReason = #bind(value) }
           }.execute(db)
         } else {
           try Building.insert {
-            Building(id: buildingID, neighborhoodID: neighborhoodID, name: incoming.name, address: incoming.address, latitude: place.latitude, longitude: place.longitude, summary: incoming.summary, status: incoming.status, rejectionReason: incoming.rejectionReason, streetEasyURL: incoming.streetEasyURL, websiteURL: incoming.website)
+            Building(id: buildingID, neighborhoodID: neighborhoodID, name: incoming.name, address: incoming.address, latitude: place.latitude, longitude: place.longitude, mapItemIdentifier: place.mapItemIdentifier, summary: incoming.summary, status: incoming.status, rejectionReason: incoming.rejectionReason, streetEasyURL: incoming.streetEasyURL, websiteURL: incoming.website)
           }.execute(db)
-          buildings.append(Building(id: buildingID, neighborhoodID: neighborhoodID, name: incoming.name, address: incoming.address, latitude: place.latitude, longitude: place.longitude, summary: incoming.summary, status: incoming.status, rejectionReason: incoming.rejectionReason, streetEasyURL: incoming.streetEasyURL, websiteURL: incoming.website))
+          buildings.append(Building(id: buildingID, neighborhoodID: neighborhoodID, name: incoming.name, address: incoming.address, latitude: place.latitude, longitude: place.longitude, mapItemIdentifier: place.mapItemIdentifier, summary: incoming.summary, status: incoming.status, rejectionReason: incoming.rejectionReason, streetEasyURL: incoming.streetEasyURL, websiteURL: incoming.website))
         }
         for (rIndex, review) in incoming.reviews.enumerated() {
           let subject: BuildingReviewSubject = review.subject == .building ? .building : .landlord

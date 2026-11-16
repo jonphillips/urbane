@@ -22,7 +22,8 @@ func m1RecordsRoundTripThroughTheirTables() throws {
   )
   let building = Building(
     id: UUID(), neighborhoodID: neighborhood.id, name: "The Oosten", address: "429 Kent Avenue",
-    latitude: 40.711, longitude: -73.968, summary: "A courtyard building.", status: .watching,
+    latitude: 40.711, longitude: -73.968, mapItemIdentifier: "building-map-item-id",
+    summary: "A courtyard building.", status: .watching,
     rejectionReason: nil, streetEasyURL: "https://example.com/listings", websiteURL: "https://example.com",
     heroImage: Data([0x01, 0x02])
   )

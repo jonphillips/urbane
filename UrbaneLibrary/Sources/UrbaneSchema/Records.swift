@@ -136,6 +136,7 @@ public struct Building: Identifiable, Equatable, Sendable {
   public var address = ""
   public var latitude = 0.0
   public var longitude = 0.0
+  public var mapItemIdentifier: String?
   public var summary = ""
   public var status: BuildingStatus = .exploring
   public var rejectionReason: String?
@@ -145,7 +146,7 @@ public struct Building: Identifiable, Equatable, Sendable {
 
   public init(
     id: UUID, neighborhoodID: Neighborhood.ID, name: String = "", address: String = "",
-    latitude: Double = 0, longitude: Double = 0, summary: String = "",
+    latitude: Double = 0, longitude: Double = 0, mapItemIdentifier: String? = nil, summary: String = "",
     status: BuildingStatus = .exploring, rejectionReason: String? = nil,
     streetEasyURL: String? = nil, websiteURL: String? = nil, heroImage: Data? = nil
   ) {
@@ -155,6 +156,7 @@ public struct Building: Identifiable, Equatable, Sendable {
     self.address = address
     self.latitude = latitude
     self.longitude = longitude
+    self.mapItemIdentifier = mapItemIdentifier
     self.summary = summary
     self.status = status
     self.rejectionReason = rejectionReason
