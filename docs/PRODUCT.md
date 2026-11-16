@@ -23,7 +23,7 @@ every number shows its date and source.
    go.
 2. **Fall for.** Each building is a **postcard**. Swipe through its street-level views and an angled
    3D view of it on its block, plus a hero photo we chose ourselves. Then the rent band, the commute
-   times, and our two reactions.
+   times, what renters say about the building and its landlord (ADR-0007), and our two reactions.
 3. **Narrow.** Each of us rates and comments separately. A building's status is Exploring, Watching,
    Tour Candidate or Rejected. A rejected building keeps its reason, so we don't fall for it twice.
 4. **Watch** *(later, M2)*. About two months before moving in, 2BR listings in the Watching buildings
@@ -48,9 +48,11 @@ Live Look Around and Maps are still one tap away for wandering, but nothing depe
 
 - **Neighborhood chapters**: 150–250 words each, in our voice: what living there is like, not a real
   estate pitch. Drafted with Claude in chat, edited by us, stored as written (ADR-0004).
-- **Import from chat** (ADR-0006): setup is a conversation in a Claude Project. When it's done, the chat
+- **Import from chat** (ADR-0006): setup is a conversation in a Claude or ChatGPT project. When it's done, the chat
   returns one block that Urbane checks against Apple Maps, shows for review, and imports. That's how
   the neighborhoods, chapters and starting buildings get in, without typing "420 Kent" twenty times.
+  The same paste can carry what renters say on Openigloo and elsewhere, each rating with its link
+  and date (ADR-0007).
 - **"A Tuesday here"**: for at most five buildings we love: morning coffee, the commute, dinner, an
   evening walk. Each stop gets a vignette. It's written by hand, and the other buildings simply don't
   have one.
@@ -79,7 +81,8 @@ not in our heads.
 - A web client, a server, an App Store release.
 - Any automated collection of listing photos, or scraping of rents.
 - A comprehensive NYC database. Urbane only knows buildings we added.
-- AI-generated content per building, and recommendation features of any kind.
+- AI generation inside the app, and recommendation features of any kind. (The chat drafts; we review
+  and import.)
 - Apartment lines and stacks, the visit itinerary, the comparison view and listing alerts are
   **not in M1**. They're parked in `open-questions.md` until their time comes.
 - Anything we'd still be maintaining after the lease is signed.

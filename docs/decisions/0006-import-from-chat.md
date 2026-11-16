@@ -17,9 +17,11 @@ name a building that doesn't exist. The import has to catch that, not trust it.
 
 ## Decision
 
-1. **The contract.** `docs/chat-contract.md` is the text pasted into a Claude Project's instructions.
+1. **The contract.** `docs/chat-contract.md` is the text pasted into a chat project's instructions
+   (Claude or ChatGPT; the contract is plain text and works in either).
    The chat replies with prose as it likes, then a final message holding the marker line
-   `URBANE-CONTRACT: v1` and one fenced JSON object of `neighborhoods` and `buildings`. Statuses use
+   `URBANE-CONTRACT: v1` and one fenced JSON object of `neighborhoods` and `buildings` (each building
+   may carry `reviews`, ADR-0007). Statuses use
    the four app values. A rejected building must carry a `rejectionReason`, so ruled-out buildings
    arrive already ruled out. **The contract forbids rent numbers**: rents come only from ADR-0003's
    named sources.
@@ -43,10 +45,12 @@ name a building that doesn't exist. The import has to catch that, not trust it.
 6. **Re-import is safe.** An existing building is matched by map item identifier, then by normalized
    address. An import fills **only empty fields**. It never overwrites a chapter, summary, status or
    anything we edited. Where a chapter already exists, the review offers "keep ours / replace" per
-   neighborhood, defaulting to keep. A rejection never gets reversed by an import.
+   neighborhood, defaulting to keep. A rejection never gets reversed by an import. The one exception
+   is reviews, which replace by source and subject (ADR-0007): they're other people's words, not ours.
 7. **What the chat's words become:** `chapter` → the neighborhood's chapter, a building's `summary` →
    `buildings.summary` (a short "why it's on the list", shown on the postcard), and `vignettes` →
-   resolved neighborhood vignettes. The chat's prose outside the JSON isn't stored.
+   resolved neighborhood vignettes, and a building's `reviews` → `buildingReviews` rows (ADR-0007). The
+   chat's prose outside the JSON isn't stored.
 
 ## Consequences
 
