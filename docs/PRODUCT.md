@@ -48,6 +48,9 @@ Live Look Around and Maps are still one tap away for wandering, but nothing depe
 
 - **Neighborhood chapters**: 150–250 words each, in our voice: what living there is like, not a real
   estate pitch. Drafted with Claude in chat, edited by us, stored as written (ADR-0004).
+- **Import from chat** (ADR-0006): setup is a conversation in a Claude Project. When it's done, the chat
+  returns one block that Urbane checks against Apple Maps, shows for review, and imports. That's how
+  the neighborhoods, chapters and starting buildings get in, without typing "420 Kent" twenty times.
 - **"A Tuesday here"**: for at most five buildings we love: morning coffee, the commute, dinner, an
   evening walk. Each stop gets a vignette. It's written by hand, and the other buildings simply don't
   have one.

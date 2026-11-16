@@ -14,7 +14,7 @@ Any second relationship is a **loose UUID** column.
 | `people` | `searchID` | | `displayName`; `iCloudUserRecordName` nullable (Galavant ADR-0051 shape) |
 | `neighborhoods` | `searchID` | | name, `chapter` text, region center and span, sort order |
 | `neighborhoodRents` | `neighborhoodID` | | month, median 2BR rent, source label |
-| `buildings` | `neighborhoodID` | | name, address, coordinate, `status` enum, `rejectionReason`, StreetEasy URL, building site URL, `heroImage` BLOB |
+| `buildings` | `neighborhoodID` | | name, address, coordinate, `summary` text (ADR-0006), `status` enum, `rejectionReason`, StreetEasy URL, building site URL, `heroImage` BLOB |
 | `neighborhoodVignettes` | `neighborhoodID` | | place name, coordinate, map item id, caption, order |
 | `buildingVignettes` | `buildingID` | | same columns; facade, corner, and "A Tuesday here" stops (`tuesdayPart` enum, nullable) |
 | `commutes` | `buildingID` | | `destination` enum, transit seconds, computed date |

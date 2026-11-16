@@ -33,7 +33,8 @@ The house stack (jon-platform `AGENTS.md`, `docs/ios/`), bound here by ADR-0001.
 
 - SwiftUI multiplatform, iPad first. iPhone has to work; Mac runs as "Designed for iPad".
 - MapKit only: maps, Look Around, transit ETAs, places. No Google APIs and no API keys (ADR-0002).
-- Reuses `WebExtractorKit` (browser capture), `LLMClientKit` (field extraction) and `CloudSyncKit`
+- Reuses `WebExtractorKit` (browser capture), `LLMClientKit` (field extraction), `LLMHandoffKit` (the
+  chat contract marker, ADR-0006) and `CloudSyncKit`
   (sync health, backup) from jon-platform by path. Urbane creates **no new shared packages**.
 - Plain product name everywhere: `Urbane`, `com.jonphillips.urbane`, `iCloud.com.jonphillips.urbane`.
 - Reusable, MapKit-free logic goes in the local SPM package (`UrbaneLibrary`), with tests.

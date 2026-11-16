@@ -10,7 +10,8 @@ Work becomes dispatchable only when a plan PR moves it into a milestone or effor
 - **Neighborhood list.** The destinations (SoHo, Tribeca, West Village, LES) lean downtown, but three of
   the five starting neighborhoods are Brooklyn, Queens or the UWS. Worth adding one or two downtown
   Manhattan neighborhoods, even just to compare against?
-- **Seed buildings.** 15–20, chosen by the two of you. Urbane doesn't suggest any.
+- **Seed buildings.** 15–20, chosen by the two of you, probably in one chat session with the Urbane
+  Project (`docs/chat-contract.md`) and brought in with Import from chat. Urbane itself never suggests any.
 - **Market-rate only.** Rent-stabilized leases require the unit to be your primary residence, which a
   pied-à-terre fails. Filter them out when adding buildings.
 
@@ -27,7 +28,8 @@ Work becomes dispatchable only when a plan PR moves it into a milestone or effor
   complaints, bedbug filings) per building. It's the kind of fact that rules a building out. A cheap
   read-only panel, if we get that far.
 - **Apartment lines and stacks.** Only if the last two buildings have lines worth comparing.
-- **MCP access** for staging chapters from a chat (jon-platform ADR-0007), if pasting gets tedious.
+- **MCP access** (jon-platform ADR-0007). Only if the chat needs to *read* Urbane. Import from chat
+  (ADR-0006) already covers writing.
 - **Urbane's accent color and app icon.** Part of S1's look, not a polish pass. Jon's call.
 
 ## Retirement
