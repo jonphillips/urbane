@@ -1,7 +1,8 @@
 # ADR-0006: Import from chat — one paste carries a seed into Urbane, resolved and reviewed
 
 *Status: proposed — 2026-11-16. Follows Galavant's trip-seed handoff (Galavant ADR-0048) and uses
-`LLMHandoffKit`'s contract marker. Adds one column (`buildings.summary`, ADR-0005).*
+`LLMHandoffKit`'s contract marker. Adds two columns (`buildings.summary` and
+`buildings.mapItemIdentifier`, ADR-0005).*
 
 ## Context
 
@@ -28,7 +29,9 @@ name a building that doesn't exist. The import has to catch that, not trust it.
 2. **The marker follows `HandoffContractMarker`'s rules**: a missing or older marker imports with a
    warning, and a newer one is refused. Decoding is strict: an unknown status or a missing required
    field fails that row loudly, and is never silently dropped or defaulted (jon-platform
-   `semantic-fidelity.md`).
+   `semantic-fidelity.md`). Strictness applies to the data, not its wrapping: copying from a chat
+   app on iPad drops the code fences, so the decoder takes one fenced block if there is one, and
+   otherwise the single `{…}` object in the paste. Several candidate blocks are refused.
 3. **Paste, from any device.** Import from chat is a sheet with one action: paste. No inbox file, no
    Mac helper, no MCP. A chat on the phone works.
 4. **Every place is resolved on device before review.** Each building is looked up with `MKLocalSearch`
@@ -42,10 +45,12 @@ name a building that doesn't exist. The import has to catch that, not trust it.
 5. **One bulk review, nothing saved until Import.** It's grouped by neighborhood, with chapters
    collapsed and readable, and buildings marked as new, already in Urbane, or unresolved. Import writes
    everything in one transaction.
-6. **Re-import is safe.** An existing building is matched by map item identifier, then by normalized
-   address. An import fills **only empty fields**. It never overwrites a chapter, summary, status or
-   anything we edited. Where a chapter already exists, the review offers "keep ours / replace" per
-   neighborhood, defaulting to keep. A rejection never gets reversed by an import. The one exception
+6. **Re-import is safe.** An existing building is matched by map item identifier
+   (`buildings.mapItemIdentifier`, ADR-0005), then by normalized address. A building matched by
+   address with no identifier gets the resolved one, since it's an empty field. An import fills
+   **only empty fields**. It never overwrites a chapter, summary, status or anything we edited.
+   Where a chapter already exists, the review offers "keep ours / replace" per neighborhood,
+   defaulting to keep. A rejection never gets reversed by an import. The one exception
    is reviews, which replace by source and subject (ADR-0007): they're other people's words, not ours.
 7. **What the chat's words become:** `chapter` → the neighborhood's chapter, a building's `summary` →
    `buildings.summary` (a short "why it's on the list", shown on the postcard), and `vignettes` →

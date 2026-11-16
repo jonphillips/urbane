@@ -14,7 +14,7 @@ Any second relationship is a **loose UUID** column.
 | `people` | `searchID` | | `displayName`; `iCloudUserRecordName` nullable (Galavant ADR-0051 shape) |
 | `neighborhoods` | `searchID` | | name, `chapter` text, region center and span, sort order |
 | `neighborhoodRents` | `neighborhoodID` | | month, median 2BR rent, source label |
-| `buildings` | `neighborhoodID` | | name, address, coordinate, `summary` text (ADR-0006), `status` enum, `rejectionReason`, StreetEasy URL, building site URL, `heroImage` BLOB |
+| `buildings` | `neighborhoodID` | | name, address, coordinate, map item id (nullable; added in S3), `summary` text (ADR-0006), `status` enum, `rejectionReason`, StreetEasy URL, building site URL, `heroImage` BLOB |
 | `neighborhoodVignettes` | `neighborhoodID` | | place name, coordinate, map item id, caption, order |
 | `buildingVignettes` | `buildingID` | | same columns; facade, corner, and "A Tuesday here" stops (`tuesdayPart` enum, nullable) |
 | `commutes` | `buildingID` | | `destination` enum, transit seconds, computed date |
@@ -25,6 +25,10 @@ Any second relationship is a **loose UUID** column.
 
 - **Vignettes are two tables, not one with two parents.** A neighborhood vignette and a building
   vignette never move between parents, so separate tables keep the single-FK rule without loose links.
+- **`buildings.mapItemIdentifier`** is the MapKit item a building was resolved to: set by search,
+  nil for a hand-placed pin, replaced when the location is fixed by search and cleared when it's
+  fixed by pin. It exists so a re-import can match by identifier first (ADR-0006 §6). Apple doesn't
+  promise identifiers are stable, so it's a matching hint, never a key.
 - **`status`** is a persisted `Int` enum: `exploring`, `watching`, `tourCandidate`, `rejected`.
   `rejectionReason` is non-empty only when the status is `rejected`. Enforce this in the write path,
   since a CHECK constraint isn't worth a fight with sync.
