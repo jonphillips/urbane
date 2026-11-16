@@ -29,7 +29,9 @@ name a building that doesn't exist. The import has to catch that, not trust it.
 2. **The marker follows `HandoffContractMarker`'s rules**: a missing or older marker imports with a
    warning, and a newer one is refused. Decoding is strict: an unknown status or a missing required
    field fails that row loudly, and is never silently dropped or defaulted (jon-platform
-   `semantic-fidelity.md`).
+   `semantic-fidelity.md`). Strictness applies to the data, not its wrapping: copying from a chat
+   app on iPad drops the code fences, so the decoder takes one fenced block if there is one, and
+   otherwise the single `{…}` object in the paste. Several candidate blocks are refused.
 3. **Paste, from any device.** Import from chat is a sheet with one action: paste. No inbox file, no
    Mac helper, no MCP. A chat on the phone works.
 4. **Every place is resolved on device before review.** Each building is looked up with `MKLocalSearch`
