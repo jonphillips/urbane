@@ -10,6 +10,29 @@ import UrbaneSchema
     #expect(decoded.buildings.count == 1)
   }
 
+  @Test func markerAndBareJSONObjectDecodeWithoutFences() throws {
+    let text = "URBANE-CONTRACT: v1\n" + json()
+    #expect(try ChatImportDecoder.decode(text).warning == nil)
+  }
+
+  @Test func bareJSONWithoutMarkerWarns() throws {
+    #expect(try ChatImportDecoder.decode(json()).warning?.contains("missing its contract marker") == true)
+  }
+
+  @Test func proseBeforeBareJSONObjectIsAccepted() throws {
+    #expect(try ChatImportDecoder.decode("Here is your Urbane seed:\n\n" + json()).buildings.count == 1)
+  }
+
+  @Test func untaggedSingleFenceIsAccepted() throws {
+    #expect(try ChatImportDecoder.decode("```\n" + json() + "\n```").buildings.count == 1)
+  }
+
+  @Test func multipleJSONFencesAreRefused() {
+    #expect(throws: ChatImportError.self) {
+      try ChatImportDecoder.decode("```json\n\(json())\n```\n```json\n{}\n```")
+    }
+  }
+
   @Test func newerMarkerIsRefused() {
     #expect(throws: ChatImportError.self) { try ChatImportDecoder.decode("URBANE-CONTRACT: v2\n```json\n{}\n```") }
   }
@@ -38,6 +61,12 @@ import UrbaneSchema
     #expect(throws: ChatImportError.self) { try ChatImportDecoder.decode(paste(review: #"{"source":"Openigloo","about":"building","rating":null,"outOf":null,"count":null,"newestReview":null,"summary":"Good maintenance."}"#)) }
   }
 
+  @Test func repeatedReviewSourceAndSubjectInOneBuildingFails() {
+    let one = #"{"source":"Openigloo","about":"building","url":"https://example.com/1","rating":null,"outOf":null,"count":null,"newestReview":null,"summary":"First."}"#
+    let two = #"{"source":" openigloo ","about":"building","url":"https://example.com/2","rating":null,"outOf":null,"count":null,"newestReview":null,"summary":"Second."}"#
+    #expect(throws: ChatImportError.self) { try ChatImportDecoder.decode(paste(reviews: [one, two])) }
+  }
+
   @Test func validReviewRoundTripsItsScaleAndProvenance() throws {
     let decoded = try ChatImportDecoder.decode(paste(review: #"{"source":"Openigloo","about":"building","url":"https://example.com/reviews","rating":3.8,"outOf":5,"count":42,"newestReview":"2026-09","summary":"Repairs are prompt."}"#))
     #expect(decoded.buildings[0].reviews[0].ratingScale == 5)
@@ -51,11 +80,17 @@ import UrbaneSchema
       address: incoming.address, summary: "Our edited note", status: .rejected,
       rejectionReason: "Too noisy"
     )
-    #expect(ChatImportReconciliation.matchingBuilding(mapItemIdentifier: nil, address: "1 north 4th place brooklyn ny 11249", among: [edited])?.id == edited.id)
+    #expect(ChatImportReconciliation.matchingBuilding(mapItemIdentifier: nil, address: "1 North 4th Pl, Brooklyn, NY 11249", among: [edited])?.id == edited.id)
     #expect(ChatImportReconciliation.fillEmptyFields(of: edited, from: incoming, mapItemIdentifier: "resolved-id") == BuildingFill(
       summary: nil, mapItemIdentifier: "resolved-id", streetEasyURL: nil, websiteURL: nil, rejectionReason: nil
     ))
     #expect(edited.status == .rejected)
+  }
+
+  @Test func addressMatchNormalizesStreetLineAndKeepsNumbersDistinct() {
+    #expect(ChatImportReconciliation.normalizedAddress("420 Kent Ave, Brooklyn, NY") == ChatImportReconciliation.normalizedAddress("420 Kent Avenue, Brooklyn, NY 11249"))
+    #expect(ChatImportReconciliation.normalizedAddress("1 N 4th Pl, Brooklyn, NY") == ChatImportReconciliation.normalizedAddress("1 North 4th Place, Brooklyn, NY 11249"))
+    #expect(ChatImportReconciliation.normalizedAddress("420 Kent Avenue, Brooklyn, NY") != ChatImportReconciliation.normalizedAddress("429 Kent Avenue, Brooklyn, NY"))
   }
 
   @Test func buildingReimportMatchesMapIdentifierBeforeAddressAndFillsAnEmptyIdentifier() throws {
@@ -77,7 +112,7 @@ import UrbaneSchema
     let buildingID = UUID()
     let incoming = try ChatImportDecoder.decode(paste(review: #"{"source":"Openigloo","about":"building","url":"https://example.com/new","rating":4.1,"outOf":5,"count":50,"newestReview":"2026-10","summary":"Recent repair notes."}"#)).buildings[0].reviews[0]
     let existing = BuildingReview(
-      id: UUID(), buildingID: buildingID, source: "Openigloo", subject: .building,
+      id: UUID(), buildingID: buildingID, source: " Openigloo ", subject: .building,
       sourceURL: "https://example.com/old", summary: "Old", gatheredAt: Date(timeIntervalSince1970: 1)
     )
     let otherSource = BuildingReview(
@@ -95,12 +130,42 @@ import UrbaneSchema
   private func paste(status: String = "exploring", rejectionReason: String? = "null", review: String? = nil) -> String {
     let reason = rejectionReason ?? "null"
     let reviews = review.map { "[\($0)]" } ?? "[]"
+    return "```json\n\(json(status: status, reason: reason, reviews: reviews))\n```"
+  }
+
+  private func paste(reviews: [String]) -> String {
+    "```json\n\(json(reviews: "[\(reviews.joined(separator: ","))]"))\n```"
+  }
+
+  private func json() -> String { json(status: "exploring", reason: "null", reviews: "[]") }
+
+  private func json(status: String = "exploring", reason: String = "null", reviews: String = "[]") -> String {
     return """
-    ```json
     {"neighborhoods":[{"name":"Williamsburg","chapter":"","vignettes":[]}],"buildings":[{"name":"One North Fourth","address":"1 North 4th Place, Brooklyn, NY 11249","neighborhood":"Williamsburg","summary":"Courtyard building.","status":"\(status)","rejectionReason":\(reason),"streetEasyURL":null,"website":null,"reviews":\(reviews)}]}
-    ```
     """
   }
+}
+
+@Suite struct PlaceSearchRowTests {
+  @Test func onePlaceSearchFailureIsContainedToItsRow() async throws {
+    let client = PlaceSearchClient { query in
+      if query == "fail" { throw FixtureSearchError.offline }
+      return []
+    }
+    #expect(try await PlaceSearchRows.resolve(query: "fail", using: client) == .unresolved("Fixture search failed"))
+    #expect(try await PlaceSearchRows.resolve(query: "no match", using: client) == .matches([]))
+  }
+
+  @Test func mapKitErrorsDistinguishNoMatchAndThrottle() {
+    #expect(PlaceSearchFailureDisposition.classify(domain: "MKErrorDomain", code: 4) == .noMatch)
+    #expect(PlaceSearchFailureDisposition.classify(domain: "MKErrorDomain", code: 3) == .throttled)
+    #expect(PlaceSearchFailureDisposition.classify(domain: "Other", code: 4) == .other)
+  }
+}
+
+private enum FixtureSearchError: Error, LocalizedError, Sendable {
+  case offline
+  var errorDescription: String? { "Fixture search failed" }
 }
 
 @Suite struct BuildingURLSlugTests {

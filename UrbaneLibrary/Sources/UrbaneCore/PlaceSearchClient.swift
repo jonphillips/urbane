@@ -28,15 +28,64 @@ public struct PlaceSearchClient: Sendable {
   }
 }
 
+public enum PlaceSearchRowResolution: Equatable, Sendable {
+  case matches([PlaceMatch])
+  case unresolved(String)
+}
+
+/// Turns a place lookup failure into a row-level review result without losing other rows.
+public enum PlaceSearchRows {
+  public static func resolve(query: String, using client: PlaceSearchClient) async throws -> PlaceSearchRowResolution {
+    do {
+      return .matches(try await client.search(query))
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      return .unresolved(error.localizedDescription)
+    }
+  }
+}
+
+public enum PlaceSearchFailureDisposition: Equatable, Sendable {
+  case noMatch
+  case throttled
+  case other
+
+  public static func classify(domain: String, code: Int) -> Self {
+    guard domain == "MKErrorDomain" else { return .other }
+    switch code {
+    case 4: return .noMatch // MKError.Code.placemarkNotFound
+    case 3: return .throttled // MKError.Code.loadingThrottled
+    default: return .other
+    }
+  }
+}
+
 extension PlaceSearchClient: DependencyKey {
   public static let liveValue = PlaceSearchClient { query in
-    var request = MKLocalSearch.Request()
-    request.naturalLanguageQuery = query
-    request.region = MKCoordinateRegion(
-      center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -73.94),
-      span: MKCoordinateSpan(latitudeDelta: 0.48, longitudeDelta: 0.72)
-    )
-    let response = try await MKLocalSearch(request: request).start()
+    let response: MKLocalSearch.Response
+    var attempt = 0
+    while true {
+      var request = MKLocalSearch.Request()
+      request.naturalLanguageQuery = query
+      request.region = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -73.94),
+        span: MKCoordinateSpan(latitudeDelta: 0.48, longitudeDelta: 0.72)
+      )
+      do {
+        response = try await MKLocalSearch(request: request).start()
+        break
+      } catch {
+        let nsError = error as NSError
+        switch PlaceSearchFailureDisposition.classify(domain: nsError.domain, code: nsError.code) {
+        case .noMatch: return []
+        case .throttled where attempt < 2:
+          attempt += 1
+          try await Task.sleep(for: .milliseconds(250 * attempt))
+        case .throttled, .other: throw error
+        }
+      }
+    }
     return response.mapItems.compactMap { item in
       let coordinate = item.location.coordinate
       guard NYC.contains(coordinate.latitude, coordinate.longitude) else { return nil }

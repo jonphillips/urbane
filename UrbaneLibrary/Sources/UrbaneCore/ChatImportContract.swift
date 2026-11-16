@@ -75,9 +75,8 @@ public enum ChatImportDecoder {
       throw ChatImportError.newerContract(error.localizedDescription)
     }
 
-    guard let json = fencedJSON(in: checked.text), let data = json.data(using: .utf8) else {
-      throw ChatImportError.invalidPaste("Expected one fenced JSON object from the Urbane chat contract.")
-    }
+    let json = try jsonPayload(in: checked.text)
+    guard let data = json.data(using: .utf8) else { throw ChatImportError.invalidPaste("The JSON paste is not valid text.") }
     do {
       try validateKeys(in: data)
       let payload = try JSONDecoder().decode(Payload.self, from: data)
@@ -121,15 +120,34 @@ public enum ChatImportDecoder {
     }
   }
 
-  private static func fencedJSON(in text: String) -> String? {
+  private static func jsonPayload(in text: String) throws -> String {
     let parts = text.components(separatedBy: "```")
-    let blocks = stride(from: 1, to: parts.count, by: 2).map { parts[$0] }
-    let jsonBlocks = blocks.filter { block in
-      let trimmed = block.trimmingCharacters(in: .whitespacesAndNewlines)
-      return trimmed.hasPrefix("json")
+    if parts.count > 1 {
+      guard !parts.count.isMultiple(of: 2) else {
+        throw ChatImportError.invalidPaste("The paste contains an unclosed code fence.")
+      }
+      var jsonBlocks: [String] = []
+      var untaggedBlocks: [String] = []
+      for blockIndex in stride(from: 1, to: parts.count, by: 2) {
+        let block = parts[blockIndex].trimmingCharacters(in: .whitespacesAndNewlines)
+        let firstLine = block.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        if firstLine.lowercased() == "json" {
+          jsonBlocks.append(String(block.dropFirst(firstLine.count)).trimmingCharacters(in: .whitespacesAndNewlines))
+        } else if block.hasPrefix("{") {
+          untaggedBlocks.append(block)
+        }
+      }
+      let candidates = jsonBlocks + untaggedBlocks
+      guard candidates.count == 1, let candidate = candidates.first else {
+        throw ChatImportError.invalidPaste("Expected exactly one JSON block in the paste.")
+      }
+      return candidate
     }
-    guard jsonBlocks.count == 1 else { return nil }
-    return String(jsonBlocks[0].drop(while: { !$0.isNewline })).trimmingCharacters(in: .whitespacesAndNewlines)
+
+    guard let start = text.firstIndex(of: "{"), let end = text.lastIndex(of: "}"), start <= end else {
+      throw ChatImportError.invalidPaste("Expected a JSON object in the paste.")
+    }
+    return String(text[start...end])
   }
 }
 
@@ -213,12 +231,20 @@ private struct BuildingRow: Decodable {
     guard !name.isEmpty, !address.isEmpty, !neighborhood.isEmpty, !summary.isEmpty else {
       throw ChatImportError.invalidRow(path: path, reason: "name, address, neighborhood, and summary are required")
     }
+    let decodedReviews = try (reviews ?? []).enumerated().map {
+      try $0.element.value(path: "\(path).reviews[\($0.offset)]")
+    }
+    var reviewKeys = Set<String>()
+    for review in decodedReviews {
+      let key = "\(ChatImportReconciliation.normalizedReviewSource(review.source))|\(review.subject.rawValue)"
+      guard reviewKeys.insert(key).inserted else {
+        throw ChatImportError.invalidRow(path: path, reason: "repeated review source and subject")
+      }
+    }
     return ChatBuilding(
       name: name, address: address, neighborhood: neighborhood, summary: summary,
       status: status, rejectionReason: rejectionReason, streetEasyURL: streetEasyURL,
-      website: website, reviews: try (reviews ?? []).enumerated().map {
-        try $0.element.value(path: "\(path).reviews[\($0.offset)]")
-      }
+      website: website, reviews: decodedReviews
     )
   }
 }

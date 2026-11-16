@@ -33,6 +33,10 @@ final class UrbaneMapModel {
 
   func search(_ query: String) async throws -> [PlaceMatch] { try await placeSearch.search(query) }
 
+  func resolveSearchRow(_ query: String) async throws -> PlaceSearchRowResolution {
+    try await PlaceSearchRows.resolve(query: query, using: placeSearch)
+  }
+
   func addNeighborhood(name: String, match: PlaceMatch, latitudeSpan: Double, longitudeSpan: Double) {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty, let search = searches.first else { return }
@@ -97,7 +101,7 @@ final class UrbaneMapModel {
     try database.write { db in
       var neighborhoods = try Neighborhood.fetchAll(db)
       var buildings = try Building.fetchAll(db)
-      let reviews = try BuildingReview.fetchAll(db)
+      var reviews = try BuildingReview.fetchAll(db)
       let vignetteRows = try NeighborhoodVignette.fetchAll(db)
       var neighborhoodIDs: [String: UUID] = [:]
 
@@ -172,9 +176,11 @@ final class UrbaneMapModel {
               $0.summary = #bind(review.summary); $0.gatheredAt = #bind(now)
             }.execute(db)
           } else {
+            let newReview = BuildingReview(id: uuid(), buildingID: buildingID, source: review.source, subject: subject, sourceURL: review.sourceURL, rating: review.rating, ratingScale: review.ratingScale, reviewCount: review.reviewCount, newestReviewMonth: review.newestReviewMonth, summary: review.summary, gatheredAt: now)
             try BuildingReview.insert {
-              BuildingReview(id: uuid(), buildingID: buildingID, source: review.source, subject: subject, sourceURL: review.sourceURL, rating: review.rating, ratingScale: review.ratingScale, reviewCount: review.reviewCount, newestReviewMonth: review.newestReviewMonth, summary: review.summary, gatheredAt: now)
+              newReview
             }.execute(db)
+            reviews.append(newReview)
           }
         }
       }
@@ -183,6 +189,6 @@ final class UrbaneMapModel {
   // swiftlint:enable function_body_length
 
   static func normalize(_ value: String) -> String {
-    ChatImportReconciliation.normalizedAddress(value)
+    ChatImportReconciliation.normalizedNeighborhoodName(value)
   }
 }
