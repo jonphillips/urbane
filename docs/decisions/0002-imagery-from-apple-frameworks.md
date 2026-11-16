@@ -37,10 +37,31 @@ photography. That leaves imagery we generate or choose ourselves.
 - Do 3D snapshots of mid-block buildings in Williamsburg and LIC look good, or only landmarks? If they
   look flat, use the satellite or hybrid map style for the angled view instead.
 
+## Resolved by S1 (Jon, iPad, 2026-11-16)
+
+- **The angled view is realistic hybrid.** It uses `MKHybridMapConfiguration(elevationStyle: .realistic)` at one
+  house camera: pitch 55°, 350 m, heading 30°. Jon's verdict was "realistic hybrid looks good" for
+  mid-block Williamsburg and LIC buildings. Realistic standard was tried alongside it and isn't used.
+- **Look Around facing is inconclusive, so every Look Around vignette can be adjusted.** It was hard to
+  tell whether `MKMapItem` scenes consistently face the building. That's this ADR's planned fallback, not
+  a stop. `MKLookAroundSnapshotter` takes a scene, not a camera heading, so adjusting can only change
+  *which scene is requested*. S4 opens with a short device proof of two candidates:
+  1. **A different map item:** pick a nearby place or address from a search around the building.
+  2. **A tapped point:** request the scene from a coordinate Jon taps on a small map, with no map item.
+
+  Whichever one reliably gives a still that faces the building becomes the recipe. The vignette tables
+  already hold a coordinate and an optional map item identifier, so candidate 1 or 2 probably needs no
+  new column. If it does, it's an additive migration, escalated. If neither candidate works, that
+  vignette shows a live `LookAroundPreview` we can pan, instead of a still.
+- **A building can exist without a map item.** 420 Kent Avenue found no match in S1. Any building
+  search can't find gets a pin placed by hand: the address as typed, the pin's coordinate, and no map
+  item identifier. Its Look Around is requested by coordinate. "Fix location" re-runs the search or
+  moves the pin (M1 S2).
+
 ## Consequences
 
 - Images take a moment to appear on a new device while the cache fills. Show the map snapshot first;
   it's fastest.
 - If Apple has no Look Around coverage for a block, that building gets only its 3D view and hero image.
 - If S1 shows Look Around isn't good enough, this ADR is revisited before anything else is built. The
-  whole product premise depends on it.
+  whole product premise depends on it. (S1 passed with the adjustments above.)
