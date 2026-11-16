@@ -1,7 +1,7 @@
-# Next Up — A full chat seed resolves without Apple Maps throttling it
+# Next Up — The building postcard and neighborhood chapters
 
-**Slices:** effort `import-search-pacing`
-**Briefs:** [docs/efforts/import-search-pacing.md](efforts/import-search-pacing.md)
-**Done when:** per the brief. The gate passes; the pacer and throttle-wait tests pass on a test clock.
+**Slices:** M1 · S4 + S5
+**Briefs:** docs/milestones/M1-browse.md §S4 and §S5, docs/decisions/0002-imagery-from-apple-frameworks.md, docs/decisions/0004-words-are-ours.md, docs/decisions/0007-building-reviews-from-chat.md
+**Done when:** per the brief. The gate passes; a building with no hero image and no Look Around coverage still looks good, and an imported chapter keeps its paragraphs exactly as written.
 **Owed:** see [device-passes.md](device-passes.md)
-**Notes:** Branch `effort/import-search-pacing`. This goes ahead of M1 dispatch 3 because the S3 device pass can't finish until a full seed resolves. Closeout writes the empty ticket; then set `NEXT_UP.md` back to M1 dispatch 3 (S4 + S5) exactly as it reads in commit 20adae4, and re-run `check-handoff --strict`.
+**Notes:** Local-only; S7 turns sync on. S4 starts with ADR-0002's two-candidate proof for Look Around and builds the one that works. Reuse the place-search dependency from S2/S3 for vignettes.

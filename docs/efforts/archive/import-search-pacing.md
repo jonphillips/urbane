@@ -3,8 +3,8 @@
 Status: Dispatched
 Summary: Jon's first real seed needs about 80 place searches, and Apple Maps allows 50 a minute, so many rows came back with `MKError.loadingThrottled` (error 3). Pace every place search under Apple's limit, wait out a throttle instead of retrying in half a second, resolve the rows that matter most first, and let the review retry what failed.
 
-Related: [M1 · S3](../milestones/M1-browse.md#s3--import-from-chat) · [ADR-0006](../decisions/0006-import-from-chat.md) ·
-[Efforts index](README.md)
+Related: [M1 · S3](../../milestones/M1-browse.md#s3--import-from-chat) · [ADR-0006](../../decisions/0006-import-from-chat.md) ·
+[Efforts index](../README.md)
 
 Branch `effort/import-search-pacing`, from a fresh `main`. One PR. No schema change, no sync change,
 and no contract change.

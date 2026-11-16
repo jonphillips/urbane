@@ -14,10 +14,12 @@ struct ChatImportSheet: View {
   @State private var replaceReviews: Set<String> = []
   @State private var error: String?
   @State private var rowErrors: [String: String] = [:]
+  @State private var failedSearchKeys: Set<String> = []
   @State private var resolvedPlaces = 0
   @State private var totalPlaces = 0
   @State private var searching = false
   @State private var reviewing = false
+  @State private var resolutionTask: Task<Void, Never>?
 
   var body: some View {
     NavigationStack {
@@ -29,46 +31,44 @@ struct ChatImportSheet: View {
             Section("Paste the chat result") {
               TextEditor(text: $pasteText).frame(minHeight: 180)
               if let error { Text(error).foregroundStyle(.red) }
-              if searching { Text("Resolving \(resolvedPlaces) of \(totalPlaces)…").font(.footnote).foregroundStyle(.secondary) }
-              Button(searching ? "Resolving places…" : "Review import") { Task { await prepareReview() } }
+              if searching {
+                ChatImportProgress(resolved: resolvedPlaces, total: totalPlaces, waitingFor: model.placeSearchWaitingFor)
+              }
+              Button(searching ? "Resolving places…" : "Review import") {
+                resolutionTask = Task { await prepareReview() }
+              }
                 .disabled(pasteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || searching)
             }
           }
         }
       }
       .navigationTitle("Import from chat")
-      .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { resolutionTask?.cancel(); dismiss() }
+        }
+      }
     }
   }
 
   @ViewBuilder private func review(_ paste: ChatImportPaste) -> some View {
     List {
+      if searching || !failedSearchKeys.isEmpty {
+        Section {
+          ChatImportProgress(
+            resolved: resolvedPlaces,
+            total: totalPlaces,
+            waitingFor: model.placeSearchWaitingFor,
+            canRetry: !failedSearchKeys.isEmpty,
+            isRetryDisabled: searching,
+            retry: { resolutionTask = Task { await retryFailedRows(in: paste) } }
+          )
+        }
+      }
       if let warning = paste.warning {
         Section { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
       }
-      ForEach(Array(paste.neighborhoods.enumerated()), id: \.offset) { index, neighborhood in
-        Section(neighborhood.name) {
-          Text("Neighborhood · \(existingNeighborhood(neighborhood.name) == nil ? "new" : "already in Urbane")")
-          resolutionRow("n\(index)", title: "Neighborhood region")
-          if let old = existingNeighborhood(neighborhood.name), !old.chapter.isEmpty, let chapter = neighborhood.chapter {
-            Toggle("Replace chapter", isOn: chapterBinding(index))
-            DisclosureGroup("Compare chapter text") {
-              VStack(alignment: .leading) {
-                Text("Urbane: \(old.chapter)").foregroundStyle(.secondary)
-                Text("Chat: \(chapter)")
-              }.font(.footnote)
-            }
-          } else if let chapter = neighborhood.chapter {
-            DisclosureGroup("New chapter") { Text(chapter).font(.footnote) }
-          }
-          ForEach(Array(neighborhood.vignettes.enumerated()), id: \.offset) { vignetteIndex, vignette in
-            resolutionRow("n\(index)v\(vignetteIndex)", title: "\(vignette.place) · \(vignette.caption)")
-          }
-          ForEach(Array(paste.buildings.enumerated().filter { UrbaneMapModel.normalize($0.element.neighborhood) == UrbaneMapModel.normalize(neighborhood.name) }), id: \.offset) { buildingIndex, building in
-            buildingReview(building, index: buildingIndex)
-          }
-        }
-      }
+      neighborhoodSections(paste)
       let declaredNames = Set(paste.neighborhoods.map { UrbaneMapModel.normalize($0.name) })
       let existingGroups = model.neighborhoods.filter { neighborhood in
         !declaredNames.contains(UrbaneMapModel.normalize(neighborhood.name))
@@ -95,6 +95,32 @@ struct ChatImportSheet: View {
           .disabled(!hasAllResolutions(paste))
       } footer: {
         Text("Nothing is saved until Import. Every place must have one selected MapKit match.")
+      }
+    }
+  }
+
+  @ViewBuilder private func neighborhoodSections(_ paste: ChatImportPaste) -> some View {
+    ForEach(Array(paste.neighborhoods.enumerated()), id: \.offset) { index, neighborhood in
+      Section(neighborhood.name) {
+        Text("Neighborhood · \(existingNeighborhood(neighborhood.name) == nil ? "new" : "already in Urbane")")
+        resolutionRow("n\(index)", title: "Neighborhood region")
+        if let old = existingNeighborhood(neighborhood.name), !old.chapter.isEmpty, let chapter = neighborhood.chapter {
+          Toggle("Replace chapter", isOn: chapterBinding(index))
+          DisclosureGroup("Compare chapter text") {
+            VStack(alignment: .leading) {
+              Text("Urbane: \(old.chapter)").foregroundStyle(.secondary)
+              Text("Chat: \(chapter)")
+            }.font(.footnote)
+          }
+        } else if let chapter = neighborhood.chapter {
+          DisclosureGroup("New chapter") { Text(chapter).font(.footnote) }
+        }
+        ForEach(Array(neighborhood.vignettes.enumerated()), id: \.offset) { vignetteIndex, vignette in
+          resolutionRow("n\(index)v\(vignetteIndex)", title: "\(vignette.place) · \(vignette.caption)")
+        }
+        ForEach(Array(paste.buildings.enumerated().filter { UrbaneMapModel.normalize($0.element.neighborhood) == UrbaneMapModel.normalize(neighborhood.name) }), id: \.offset) { buildingIndex, building in
+          buildingReview(building, index: buildingIndex)
+        }
       }
     }
   }
@@ -153,7 +179,8 @@ struct ChatImportSheet: View {
   private func prepareReview() async {
     searching = true
     error = nil
-    defer { searching = false }
+    model.placeSearchWaitingFor = nil
+    defer { searching = false; resolutionTask = nil; model.placeSearchWaitingFor = nil }
     do {
       let decoded = try ChatImportDecoder.decode(pasteText)
       paste = decoded
@@ -168,17 +195,12 @@ struct ChatImportSheet: View {
         + decoded.buildings.filter { validBuildingNeighborhoods.contains(UrbaneMapModel.normalize($0.neighborhood)) }.count
       resolvedPlaces = 0
       rowErrors = [:]
+      failedSearchKeys = []
       for (index, neighborhood) in decoded.neighborhoods.enumerated() {
         let key = "n\(index)"
         let matches = try await searchRow("\(neighborhood.name), New York, NY", key: key)
         nextChoices[key] = matches
         if matches.count == 1 { nextIDs["n\(index)"] = matches[0].id }
-        for (vIndex, vignette) in neighborhood.vignettes.enumerated() {
-          let key = "n\(index)v\(vIndex)"
-          let places = try await searchRow("\(vignette.place), \(neighborhood.name), New York, NY", key: key)
-          nextChoices[key] = places
-          if places.count == 1 { nextIDs[key] = places[0].id }
-        }
       }
       for (index, building) in decoded.buildings.enumerated() {
         let key = "b\(index)"
@@ -197,6 +219,14 @@ struct ChatImportSheet: View {
           }
         }
       }
+      for (index, neighborhood) in decoded.neighborhoods.enumerated() {
+        for (vIndex, vignette) in neighborhood.vignettes.enumerated() {
+          let key = "n\(index)v\(vIndex)"
+          let places = try await searchRow("\(vignette.place), \(neighborhood.name), New York, NY", key: key)
+          nextChoices[key] = places
+          if places.count == 1 { nextIDs[key] = places[0].id }
+        }
+      }
       choices = nextChoices
       selectedIDs = nextIDs
       replaceReviews = nextReviewReplacements
@@ -213,15 +243,44 @@ struct ChatImportSheet: View {
       let result = try await model.resolveSearchRow(query)
       resolvedPlaces += 1
       switch result {
-      case .matches(let matches): return matches
-      case .unresolved(let message): rowErrors[key] = message; return []
+      case .matches(let matches):
+        rowErrors[key] = nil
+        failedSearchKeys.remove(key)
+        return matches
+      case .unresolved(let message):
+        rowErrors[key] = message
+        failedSearchKeys.insert(key)
+        return []
       }
     } catch is CancellationError {
       throw CancellationError()
     } catch {
       resolvedPlaces += 1
       rowErrors[key] = error.localizedDescription
+      failedSearchKeys.insert(key)
       return []
+    }
+  }
+
+  private func retryFailedRows(in paste: ChatImportPaste) async {
+    guard !searching else { return }
+    searching = true
+    totalPlaces = failedSearchKeys.count
+    resolvedPlaces = 0
+    model.placeSearchWaitingFor = nil
+    defer { searching = false; resolutionTask = nil; model.placeSearchWaitingFor = nil }
+    let declared = Set(paste.neighborhoods.map { UrbaneMapModel.normalize($0.name) })
+    let validBuildingNeighborhoods = Set(paste.buildings.map(\.neighborhood).filter {
+      declared.contains(UrbaneMapModel.normalize($0)) || existingNeighborhood($0) != nil
+    }.map(UrbaneMapModel.normalize))
+    for (key, query) in ChatImportSearchJobs.make(paste: paste, validBuildingNeighborhoods: validBuildingNeighborhoods)
+    where failedSearchKeys.contains(key) {
+      let matches: [PlaceMatch]
+      do { matches = try await searchRow(query, key: key) }
+      catch is CancellationError { return }
+      catch { continue }
+      choices[key] = matches
+      if matches.count == 1, selectedIDs[key] == nil { selectedIDs[key] = matches[0].id }
     }
   }
 
@@ -295,5 +354,29 @@ struct ChatImportSheet: View {
       if value { skipped.insert(key); selectedIDs.removeValue(forKey: key) }
       else { skipped.remove(key) }
     })
+  }
+}
+
+private struct ChatImportProgress: View {
+  let resolved: Int
+  let total: Int
+  var waitingFor: Duration?
+  var canRetry = false
+  var isRetryDisabled = false
+  var retry: () -> Void = {}
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      if total > 0 { Text("Resolving \(resolved) of \(total)…") }
+      if let duration = waitingFor {
+        let seconds = max(1, Int(duration.components.seconds))
+        Text("Waiting for Apple Maps (about \(seconds) s)")
+      }
+      if canRetry {
+        Button("Retry failed rows", action: retry).disabled(isRetryDisabled)
+      }
+    }
+    .font(.footnote)
+    .foregroundStyle(.secondary)
   }
 }
