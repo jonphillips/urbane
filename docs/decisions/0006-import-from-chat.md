@@ -46,8 +46,9 @@ name a building that doesn't exist. The import has to catch that, not trust it.
 6. **Re-import is safe.** An existing building is matched by map item identifier
    (`buildings.mapItemIdentifier`, ADR-0005), then by normalized address. A building matched by
    address with no identifier gets the resolved one, since it's an empty field. An import fills
-   **only empty fields**. It never overwrites a chapter, summary, status or anything we edited. Where a chapter already exists, the review offers "keep ours / replace" per
-   neighborhood, defaulting to keep. A rejection never gets reversed by an import. The one exception
+   **only empty fields**. It never overwrites a chapter, summary, status or anything we edited.
+   Where a chapter already exists, the review offers "keep ours / replace" per neighborhood,
+   defaulting to keep. A rejection never gets reversed by an import. The one exception
    is reviews, which replace by source and subject (ADR-0007): they're other people's words, not ours.
 7. **What the chat's words become:** `chapter` → the neighborhood's chapter, a building's `summary` →
    `buildings.summary` (a short "why it's on the list", shown on the postcard), and `vignettes` →
