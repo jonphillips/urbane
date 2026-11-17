@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — M1 S6 follow-up — Keep rent capture sheet open (`m1/s6-rent-capture-presentation`)
+
+- **Result:** Moved the StreetEasy browser and rent review presentations to `BuildingDetailSheet` so the rent section stays attached to a stable presenter.
+- **Verification:** SwiftLint, all 59 UrbaneLibrary tests, and iOS build-for-testing passed. Browser-to-review presentation remains unverified on iPad.
+
 ## 2026-11-17 — Rent numbers, commutes, and StreetEasy capture (`m1/s6-rent-numbers`)
 
 - **Result:** Added StreetEasy's two-bedroom rent import and 12-month sparkline; reduced listing pages for on-device extraction with confirmation, dated rent bands, and stored transit commutes on a paced MapKit budget with background fill. Added validated building link editing.
