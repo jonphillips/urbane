@@ -87,6 +87,10 @@ struct BuildingDetailSheet: View {
           captureError: rentCaptureError
         )
         BuildingCommuteSection(building: currentBuilding, model: model)
+        BuildingSubwaySection(
+          building: currentBuilding,
+          result: SubwayStations.bundled
+        )
 
         Section("What renters say") {
           let reviews = model.reviews.filter { $0.buildingID == building.id }.sorted { $0.gatheredAt > $1.gatheredAt }

@@ -15,6 +15,8 @@ struct MapHomeView: View {
   @State private var selectedBuilding: Building?
   @State private var selectedNeighborhood: Neighborhood?
   @State private var camera: MapCameraPosition = .region(Self.initialRegion)
+  @State private var stationRegion: MKCoordinateRegion?
+  @State private var stationCameraDistance = Double.infinity
 
   @FetchAll(Neighborhood.order(by: \.name)) private var neighborhoods
   @FetchAll(Building.order(by: \.name)) private var buildings
@@ -49,9 +51,32 @@ struct MapHomeView: View {
             .accessibilityLabel(building.name)
           }
         }
+        ForEach(visibleStations) { station in
+          Annotation(station.name, coordinate: CLLocationCoordinate2D(
+            latitude: station.latitude,
+            longitude: station.longitude
+          )) {
+            SubwayStationMarker(
+              station: station,
+              showsName: stationCameraDistance <= SubwayStationVisibility.maximumNameCameraDistance
+            )
+          }
+          .annotationTitles(.hidden)
+        }
       }
-      .mapStyle(.standard(elevation: .realistic))
+      .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport])))
+      .onMapCameraChange(frequency: .continuous) { context in
+        stationRegion = context.region
+        stationCameraDistance = context.camera.distance
+      }
       .ignoresSafeArea(edges: .bottom)
+      .overlay(alignment: .bottom) {
+        if let stationLoadError {
+          Text("Subway stations couldn't be loaded: \(stationLoadError)")
+            .font(.footnote).padding(8).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .padding()
+        }
+      }
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Menu("Debug", systemImage: "ladybug") {
@@ -101,7 +126,9 @@ struct MapHomeView: View {
         NeighborhoodDetailSheet(neighborhood: neighborhood, model: model)
           .presentationSizing(.page)
       }
-      .task { model.bootstrap() }
+      .task {
+        model.bootstrap()
+      }
     }
   }
 
@@ -112,6 +139,18 @@ struct MapHomeView: View {
     case .tourCandidate: .green
     case .rejected: .gray
     }
+  }
+
+  private var visibleStations: [SubwayStation] {
+    guard stationCameraDistance <= SubwayStationVisibility.maximumCameraDistance,
+          let stationRegion,
+          case let .success(stations) = SubwayStations.bundled else { return [] }
+    return stations.filter { stationRegion.contains($0) }
+  }
+
+  private var stationLoadError: String? {
+    guard case let .failure(error) = SubwayStations.bundled else { return nil }
+    return error.localizedDescription
   }
 
   private static let initialRegion = MKCoordinateRegion(

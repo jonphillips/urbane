@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — M1 · S7 — The subway on the map (`m1/s7-subway-map`)
+
+- **Result:** Bundled a dated MTA station snapshot, drew route markers on both maps, and added the nearest stations to building sheets.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint (0 violations), 61 UrbaneLibrary tests, and iOS build-for-testing.
+- **Owed:** M1 S7's device gate, in [device-passes.md](device-passes.md).
 ## 2026-11-17 — M1 S6 follow-up — Keep rent capture sheet open (`m1/s6-rent-capture-presentation`)
 
 - **Result:** Moved the StreetEasy browser and rent review presentations to `BuildingDetailSheet` so the rent section stays attached to a stable presenter.

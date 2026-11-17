@@ -29,7 +29,8 @@ let package = Package(
         .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "LLMHandoffKit", package: "LLMHandoffKit"),
         .product(name: "LLMClientKit", package: "LLMClientKit"),
-      ]
+      ],
+      resources: [.process("Resources")]
     ),
     .testTarget(
       name: "UrbaneSchemaTests",
