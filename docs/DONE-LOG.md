@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-16 — M1 · S4 + S5 device pass
+
+- **Result:** Passed on Jon's iPad, under the gate as amended by #13 (Look Around views aren't adjustable). The Ashland's default facade still faced its front door ("250"), and the full-screen 3D map and Look Around viewer both work. Jon merged #12 after the pass.
+- **Verification:** Found during the pass and fixed in #12: the pager reset because the gallery sat inside a `List` row, the gallery and sheet were too small, and the editor's pin-dropping didn't give useful views (dropped, ADR-0002 § Resolved by S4). The full-screen 3D map's crash was Metal API Validation, a debug-only check, catching Apple's VectorKit renderer; it's off in the scheme (`20dfa84`) and doesn't apply outside Xcode runs.
+
 ## 2026-11-16 — M1 S4 + S5 — Building postcard and neighborhood chapters (`m1/s4-building-postcard`)
 
 - **Result:** Added a swipeable building postcard and editable neighborhood chapters, region fixes, plus field-specific import decoding errors.
