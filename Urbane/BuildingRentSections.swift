@@ -1,59 +1,30 @@
 import SwiftUI
 import UrbaneCore
 import UrbaneSchema
-import WebExtractorKit
 
 struct BuildingRentSection: View {
   let building: Building
   let model: UrbaneMapModel
-  @State private var showingBrowser = false
-  @State private var pendingReview: RentReviewContext?
-  @State private var review: RentReviewContext?
-  @State private var error: String?
-
-  private var streetEasyPageURL: URL? {
-    guard let value = building.streetEasyURL,
-          let validated = try? BuildingLinkValidator.validate(value, for: .streetEasy) else { return nil }
-    return URL(string: validated)
-  }
+  let onCapture: () -> Void
+  let captureError: String?
 
   var body: some View {
     Section("Rent band") {
       rentBand
-      Button("Capture from StreetEasy", systemImage: "magnifyingglass") { showingBrowser = true }
-        .disabled(streetEasyPageURL == nil)
-      if streetEasyPageURL == nil {
+      Button("Capture from StreetEasy", systemImage: "magnifyingglass", action: onCapture)
+        .disabled(!hasStreetEasyLink)
+      if !hasStreetEasyLink {
         Text("Add a StreetEasy link in Edit links to capture rents.")
           .font(.footnote).foregroundStyle(.secondary)
       }
-      if let error { Text(error).font(.footnote).foregroundStyle(.red) }
+      if let captureError { Text(captureError).font(.footnote).foregroundStyle(.red) }
     }
-    .onChange(of: showingBrowser) { _, isShowing in
-      if !isShowing {
-        review = pendingReview
-        pendingReview = nil
-      }
-    }
-    .sheet(isPresented: $showingBrowser) {
-      if let url = streetEasyPageURL {
-        WebExtractorBrowser(startURL: url, title: "Capture rents", confirmLabel: "Extract rents") { html, pageURL in
-          let sourceURL = pageURL ?? url
-          do {
-            let candidates = try await model.extractRentCandidates(from: html, sourceURL: sourceURL)
-            guard !candidates.isEmpty else {
-              return .notFound(message: "No 2 bedroom rental candidates were found. Try the listing page and confirm it has loaded.")
-            }
-            pendingReview = RentReviewContext(building: building, candidates: candidates, sourceURL: sourceURL)
-            error = nil
-            return .extracted
-          } catch {
-            self.error = error.localizedDescription
-            return .notFound(message: "Rent extraction failed: \(error.localizedDescription)")
-          }
-        }
-      }
-    }
-    .sheet(item: $review) { context in RentReviewSheet(context: context, model: model) }
+  }
+
+  private var hasStreetEasyLink: Bool {
+    guard let value = building.streetEasyURL,
+          let validated = try? BuildingLinkValidator.validate(value, for: .streetEasy) else { return false }
+    return URL(string: validated) != nil
   }
 
   @ViewBuilder
