@@ -50,10 +50,7 @@ struct NeighborhoodDetailSheet: View {
             Text("No places added yet.").foregroundStyle(.secondary)
           } else {
             ForEach(vignettes) { vignette in
-              VStack(alignment: .leading, spacing: 4) {
-                Text(vignette.placeName).font(.headline)
-                Text(vignette.caption).foregroundStyle(.secondary)
-              }
+              LookAroundGalleryPage(neighborhoodVignette: vignette)
             }
           }
         }
@@ -92,12 +89,21 @@ struct NeighborhoodDetailSheet: View {
           }
           MapReader { proxy in
             Map(position: $camera) {
+              MapCircle(
+                center: CLLocationCoordinate2D(
+                  latitude: Double(centerLatitude) ?? neighborhood.centerLatitude,
+                  longitude: Double(centerLongitude) ?? neighborhood.centerLongitude
+                ),
+                radius: max(latitudeSpan, longitudeSpan) * 55_500
+              )
+              .foregroundStyle(.blue.opacity(0.10))
+              .stroke(.blue.opacity(0.35), lineWidth: 1)
               Annotation("Center", coordinate: CLLocationCoordinate2D(
                 latitude: Double(centerLatitude) ?? neighborhood.centerLatitude,
                 longitude: Double(centerLongitude) ?? neighborhood.centerLongitude
               )) {
                 Image(systemName: "mappin.and.ellipse").font(.title).foregroundStyle(.red)
-              }
+              }.annotationTitles(.hidden)
             }
             .onTapGesture(coordinateSpace: .local) { point in
               guard let coordinate = proxy.convert(point, from: .local) else { return }
@@ -110,7 +116,6 @@ struct NeighborhoodDetailSheet: View {
             .font(.footnote).foregroundStyle(.secondary)
           Stepper("North–south span: \(latitudeSpan, specifier: "%.2f")°", value: $latitudeSpan, in: 0.01...0.20, step: 0.01)
           Stepper("East–west span: \(longitudeSpan, specifier: "%.2f")°", value: $longitudeSpan, in: 0.01...0.20, step: 0.01)
-          Button("Save region") { saveRegion() }
           if let error { Text(error).foregroundStyle(.red) }
         }
 
@@ -120,6 +125,10 @@ struct NeighborhoodDetailSheet: View {
         }
       }
       .navigationTitle(neighborhood.name)
+      .onChange(of: centerLatitude) { _, _ in saveRegion() }
+      .onChange(of: centerLongitude) { _, _ in saveRegion() }
+      .onChange(of: latitudeSpan) { _, _ in saveRegion() }
+      .onChange(of: longitudeSpan) { _, _ in saveRegion() }
       .toolbar {
         ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
       }
@@ -137,9 +146,12 @@ struct NeighborhoodDetailSheet: View {
   private func saveRegion() {
     guard let latitude = Double(centerLatitude), let longitude = Double(centerLongitude),
           (-90...90).contains(latitude), (-180...180).contains(longitude) else {
-      error = "Enter a valid map coordinate."
       return
     }
+    camera = .region(MKCoordinateRegion(
+      center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+      span: MKCoordinateSpan(latitudeDelta: latitudeSpan, longitudeDelta: longitudeSpan)
+    ))
     model.updateNeighborhoodRegion(
       neighborhood, latitude: latitude, longitude: longitude,
       latitudeSpan: latitudeSpan, longitudeSpan: longitudeSpan

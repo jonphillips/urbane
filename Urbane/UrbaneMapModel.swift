@@ -151,6 +151,14 @@ final class UrbaneMapModel {
     }
   }
 
+  func deleteBuildingReview(_ review: BuildingReview) {
+    withErrorReporting {
+      try database.write { db in
+        try BuildingReview.find(review.id).delete().execute(db)
+      }
+    }
+  }
+
   func moveBuildingVignettes(buildingID: UUID, from source: IndexSet, to destination: Int) {
     var rows = buildingVignettes.filter { $0.buildingID == buildingID }.sorted { $0.sortOrder < $1.sortOrder }
     let moving = source.map { rows[$0] }

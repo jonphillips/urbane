@@ -65,7 +65,14 @@ struct MapHomeView: View {
       .sheet(isPresented: $showingBuilding) { AddBuildingSheet(model: model) }
       .sheet(isPresented: $showingImport) { ChatImportSheet(model: model) }
       .sheet(item: $selectedBuilding) { building in
-        NavigationStack { BuildingDetailSheet(building: building, model: model) }
+        NavigationStack {
+          BuildingDetailSheet(building: building, model: model)
+            .toolbar {
+              ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { selectedBuilding = nil }
+              }
+            }
+        }
       }
       .sheet(item: $selectedNeighborhood) { neighborhood in NeighborhoodDetailSheet(neighborhood: neighborhood, model: model) }
       .task { model.bootstrap() }
