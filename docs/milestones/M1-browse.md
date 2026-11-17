@@ -359,7 +359,7 @@ stays here, so it survives the swap.
 - [x] S7 — The subway on the map
 - [x] S7b — Fixes from the S6 and S7 device pass
 - [x] S7c — Two touches from the S7b pass
-- [ ] S7d — Read StreetEasy's unit cards without the model
+- [x] S7d — Read StreetEasy's unit cards without the model
 - [x] S8a — Two opinions, on one device
 - [ ] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"
