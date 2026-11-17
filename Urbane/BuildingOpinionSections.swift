@@ -146,9 +146,13 @@ private struct BuildingOpinionRow: View {
 }
 
 private struct OpinionNoteEditor: View {
-  let note: String
   let onChange: (String) -> Void
-  @State private var draft = ""
+  @State private var draft: String
+
+  init(note: String, onChange: @escaping (String) -> Void) {
+    self.onChange = onChange
+    _draft = State(initialValue: note)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -157,6 +161,5 @@ private struct OpinionNoteEditor: View {
         .lineLimit(2...5)
         .onChange(of: draft) { _, value in onChange(value) }
     }
-    .onAppear { draft = note }
   }
 }
