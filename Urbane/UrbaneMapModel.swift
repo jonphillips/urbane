@@ -1,4 +1,5 @@
 import Dependencies
+import CloudKit
 import Foundation
 import LLMClientKit
 import Observation
@@ -30,6 +31,7 @@ final class UrbaneMapModel {
 
   private var didBootstrap = false
   var message: String?
+  var shareAcceptanceBlocked = false
   var placeSearchWaitingFor: Duration?
   var rentImportMessage: String?
   var rentImportError: String?
@@ -57,13 +59,28 @@ final class UrbaneMapModel {
           try Search.insert { search }.execute(db)
           searches.append(search)
         }
-        if let search = searches.first {
+        let sharedSearch = try? UrbaneCloudSync.sharedSearch(in: db)
+        let preferredID = UUID(uuidString: UserDefaults.standard.string(forKey: "urbane.activeSearchID") ?? "")
+        let search = SearchPeopleOperations.activeSearch(
+          in: searches, sharedSearch: sharedSearch ?? nil, preferredID: preferredID
+        )
+        let share = search.flatMap { selected in
+          try? SyncMetadata.find(selected.syncMetadataID).select(\.share).fetchOne(db) ?? nil
+        } ?? nil
+        let isOwner = share == nil || share?.currentUserParticipant?.role == .owner
+        if isOwner, let search {
           try SearchPeopleOperations.seedDefaults(
             searchID: search.id, jonID: uuid(), wendyID: uuid(), in: db
           )
         }
       }
     }
+    if let acceptanceMessage = UserDefaults.standard.string(forKey: "urbane.shareAcceptanceMessage") {
+      message = acceptanceMessage
+      UserDefaults.standard.removeObject(forKey: "urbane.shareAcceptanceMessage")
+    }
+    shareAcceptanceBlocked = UserDefaults.standard.bool(forKey: "urbane.shareAcceptanceBlocked")
+    Task { await bindToCurrentICloudPersonIfKnown() }
     Task { await refreshMissingCommutes() }
   }
 
@@ -81,7 +98,7 @@ final class UrbaneMapModel {
 
   func addNeighborhood(name: String, match: PlaceMatch, latitudeSpan: Double, longitudeSpan: Double) {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty, let search = searches.first else { return }
+    guard !trimmed.isEmpty, let search = activeSearch else { return }
     withErrorReporting {
       try database.write { db in
         try Neighborhood.insert {
@@ -265,7 +282,7 @@ final class UrbaneMapModel {
     replaceChapters: Set<Int>,
     replaceReviews: Set<String>
   ) throws {
-    guard let search = searches.first else { throw ChatImportError.invalidPaste("The Search row is not ready yet.") }
+    guard let search = activeSearch else { throw ChatImportError.invalidPaste("The Search row is not ready yet.") }
     var importedBuildings: [Building] = []
     try database.write { db in
       var neighborhoods = try Neighborhood.fetchAll(db)
@@ -359,6 +376,7 @@ final class UrbaneMapModel {
     let buildingsToCheck = buildings + importedBuildings
     Task { await refreshMissingCommutes(for: buildingsToCheck) }
   }
+
   // swiftlint:enable function_body_length
 
   static func normalize(_ value: String) -> String {

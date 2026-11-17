@@ -19,6 +19,16 @@ packages:
     path: UrbaneLibrary
   WebExtractorKit:
     path: ../jon-platform/packages/WebExtractorKit
+  CloudSyncKit:
+    path: ../jon-platform/packages/CloudSyncKit
+  SQLiteData:
+    path: Vendor/sqlite-data
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: 7.6.0
+  StructuredQueries:
+    url: https://github.com/pointfreeco/swift-structured-queries
+    from: 0.39.1
 targets:
   Urbane:
     type: application
@@ -29,6 +39,8 @@ targets:
       path: Urbane/Urbane.entitlements
       properties:
         com.apple.security.application-groups: [group.com.jonphillips.urbane]
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.jonphillips.urbane]
+        com.apple.developer.icloud-services: [CloudKit]
     info:
       path: Urbane/Info.plist
       properties:
@@ -38,6 +50,9 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        CKSharingSupported: true
+        UIBackgroundModes:
+          - remote-notification
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -54,6 +69,14 @@ targets:
         product: UrbaneCore
       - package: WebExtractorKit
         product: WebExtractorKit
+      - package: CloudSyncKit
+        product: CloudSyncKit
+      - package: SQLiteData
+        product: SQLiteData
+      - package: GRDB
+        product: GRDB
+      - package: StructuredQueries
+        product: StructuredQueriesCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.urbane

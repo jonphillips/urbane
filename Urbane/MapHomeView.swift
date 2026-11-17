@@ -80,6 +80,24 @@ struct MapHomeView: View {
             .padding()
         }
       }
+      .overlay {
+        if model.shareAcceptanceBlocked {
+          VStack(spacing: 12) {
+            Image(systemName: "externaldrive.badge.exclamationmark").font(.largeTitle)
+            Text("This device already has apartment data.").font(.headline)
+            Text("Urbane accepted the shared search but paused browsing to avoid combining it with this local search. Export a backup before continuing.")
+              .multilineTextAlignment(.center)
+              .foregroundStyle(.secondary)
+            Button("Open backup and settings") { showingPeopleSettings = true }
+              .buttonStyle(.borderedProminent)
+          }
+          .padding(24)
+          .frame(maxWidth: 440)
+          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .background(.ultraThinMaterial)
+        }
+      }
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Menu("Debug", systemImage: "ladybug") {
@@ -137,6 +155,12 @@ struct MapHomeView: View {
       .task {
         model.bootstrap()
       }
+      .onChange(of: model.people) { _, _ in
+        Task { await model.bindToCurrentICloudPersonIfKnown() }
+      }
+      .onChange(of: model.searches.map(\.id)) { _, _ in
+        Task { await model.reconcileAcceptedShare() }
+      }
     }
   }
 
@@ -175,6 +199,10 @@ private struct PeopleSettingsSheet: View {
   var body: some View {
     NavigationStack {
       Form {
+        SyncAndShareSettingsSection(mapModel: model)
+        if let message = model.message {
+          Section { Text(message).font(.caption).foregroundStyle(.secondary) }
+        }
         Section {
           if model.people.isEmpty {
             Text("People are being set up.").foregroundStyle(.secondary)
@@ -188,6 +216,9 @@ private struct PeopleSettingsSheet: View {
                 }
               }
               .labelsHidden()
+              .onChange(of: thisIsMe) { _, value in
+                model.bindCurrentPerson(id: UUID(uuidString: value))
+              }
             }
           }
         } header: {

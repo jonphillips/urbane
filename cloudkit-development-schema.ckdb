@@ -1,0 +1,259 @@
+DEFINE SCHEMA
+
+    RECORD TYPE Users (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        roles           LIST<INT64>,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE buildingReviews (
+        buildingID                                                       ENCRYPTED STRING,
+        gatheredAt                                                       ENCRYPTED TIMESTAMP,
+        id                                                               ENCRYPTED STRING,
+        newestReviewMonth                                                ENCRYPTED STRING,
+        rating                                                           ENCRYPTED DOUBLE,
+        ratingScale                                                      ENCRYPTED DOUBLE,
+        reviewCount                                                      ENCRYPTED INT64,
+        source                                                           ENCRYPTED STRING,
+        sourceURL                                                        ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_buildingID                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_gatheredAt                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_newestReviewMonth         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_rating                    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_ratingScale               ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_reviewCount               ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_source                    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sourceURL                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_subject                   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_summary                   ENCRYPTED INT64,
+        subject                                                          ENCRYPTED INT64,
+        summary                                                          ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE searches (
+        id                                                               ENCRYPTED STRING,
+        moveInTargetDate                                                 ENCRYPTED TIMESTAMP,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_moveInTargetDate          ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_title                     ENCRYPTED INT64,
+        title                                                            ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE people (
+        displayName                                                      ENCRYPTED STRING,
+        iCloudUserRecordName                                             ENCRYPTED STRING,
+        id                                                               ENCRYPTED STRING,
+        searchID                                                         ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_displayName               ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_iCloudUserRecordName      ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_searchID                  ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE neighborhoods (
+        centerLatitude                                                   ENCRYPTED DOUBLE,
+        centerLongitude                                                  ENCRYPTED DOUBLE,
+        chapter                                                          ENCRYPTED STRING,
+        id                                                               ENCRYPTED STRING,
+        latitudeSpan                                                     ENCRYPTED DOUBLE,
+        longitudeSpan                                                    ENCRYPTED DOUBLE,
+        name                                                             ENCRYPTED STRING,
+        searchID                                                         ENCRYPTED STRING,
+        sortOrder                                                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_centerLatitude            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_centerLongitude           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_chapter                   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_latitudeSpan              ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_longitudeSpan             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_name                      ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_searchID                  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sortOrder                 ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE neighborhoodRents (
+        id                                                               ENCRYPTED STRING,
+        median2BRRent                                                    ENCRYPTED DOUBLE,
+        month                                                            ENCRYPTED STRING,
+        neighborhoodID                                                   ENCRYPTED STRING,
+        sourceLabel                                                      ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_median2BRRent             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_month                     ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_neighborhoodID            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sourceLabel               ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE buildings (
+        address                                                          ENCRYPTED STRING,
+        heroImage                                                        ASSET,
+        heroImage_hash                                                   ENCRYPTED BYTES,
+        id                                                               ENCRYPTED STRING,
+        latitude                                                         ENCRYPTED DOUBLE,
+        longitude                                                        ENCRYPTED DOUBLE,
+        mapItemIdentifier                                                ENCRYPTED STRING,
+        name                                                             ENCRYPTED STRING,
+        neighborhoodID                                                   ENCRYPTED STRING,
+        rejectionReason                                                  ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_address                   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_heroImage                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_latitude                  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_longitude                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_mapItemIdentifier         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_name                      ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_neighborhoodID            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_rejectionReason           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_status                    ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_streetEasyURL             ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_summary                   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_websiteURL                ENCRYPTED INT64,
+        status                                                           ENCRYPTED INT64,
+        streetEasyURL                                                    ENCRYPTED STRING,
+        summary                                                          ENCRYPTED STRING,
+        websiteURL                                                       ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE neighborhoodVignettes (
+        caption                                                          ENCRYPTED STRING,
+        id                                                               ENCRYPTED STRING,
+        latitude                                                         ENCRYPTED DOUBLE,
+        longitude                                                        ENCRYPTED DOUBLE,
+        mapItemIdentifier                                                ENCRYPTED STRING,
+        neighborhoodID                                                   ENCRYPTED STRING,
+        placeName                                                        ENCRYPTED STRING,
+        sortOrder                                                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_caption                   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_latitude                  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_longitude                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_mapItemIdentifier         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_neighborhoodID            ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_placeName                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sortOrder                 ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE buildingVignettes (
+        buildingID                                                       ENCRYPTED STRING,
+        caption                                                          ENCRYPTED STRING,
+        id                                                               ENCRYPTED STRING,
+        latitude                                                         ENCRYPTED DOUBLE,
+        longitude                                                        ENCRYPTED DOUBLE,
+        mapItemIdentifier                                                ENCRYPTED STRING,
+        placeName                                                        ENCRYPTED STRING,
+        sortOrder                                                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_buildingID                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_caption                   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_latitude                  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_longitude                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_mapItemIdentifier         ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_placeName                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sortOrder                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_tuesdayPart               ENCRYPTED INT64,
+        tuesdayPart                                                      ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE commutes (
+        buildingID                                                       ENCRYPTED STRING,
+        computedAt                                                       ENCRYPTED TIMESTAMP,
+        destination                                                      ENCRYPTED INT64,
+        id                                                               ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_buildingID                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_computedAt                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_destination               ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_transitSeconds            ENCRYPTED INT64,
+        transitSeconds                                                   ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE rentObservations (
+        buildingID                                                       ENCRYPTED STRING,
+        dateSeen                                                         ENCRYPTED TIMESTAMP,
+        id                                                               ENCRYPTED STRING,
+        rent                                                             ENCRYPTED INT64,
+        sourceURL                                                        ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_buildingID                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_dateSeen                  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_rent                      ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_sourceURL                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_squareFeet                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_unit                      ENCRYPTED INT64,
+        squareFeet                                                       ENCRYPTED DOUBLE,
+        unit                                                             ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE reactions (
+        buildingID                                                       ENCRYPTED STRING,
+        id                                                               ENCRYPTED STRING,
+        isFavorite                                                       ENCRYPTED INT64,
+        note                                                             ENCRYPTED STRING,
+        personID                                                         ENCRYPTED STRING,
+        rating                                                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_buildingID                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_isFavorite                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_note                      ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_personID                  ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_rating                    ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE photos (
+        buildingID                                                       ENCRYPTED STRING,
+        caption                                                          ENCRYPTED STRING,
+        dateTaken                                                        ENCRYPTED TIMESTAMP,
+        id                                                               ENCRYPTED STRING,
+        image                                                            ASSET,
+        image_hash                                                       ENCRYPTED BYTES,
+        personID                                                         ENCRYPTED STRING,
+        sqlitedata_icloud_userModificationTime                           ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_buildingID                ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_caption                   ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_dateTaken                 ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_id                        ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_image                     ENCRYPTED INT64,
+        sqlitedata_icloud_userModificationTime_personID                  ENCRYPTED INT64,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );

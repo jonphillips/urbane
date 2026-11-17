@@ -192,3 +192,50 @@ func defaultPeopleAreSeededOnceForTheSearch() throws {
   #expect(Set(people.map(\.displayName)) == ["Jon", "Wendy"])
   #expect(people.count == 2)
 }
+
+@Test
+func activeSearchPrefersSharedRootThenDeviceChoiceThenFirstRoot() {
+  let first = Search(id: UUID(), title: "First")
+  let chosen = Search(id: UUID(), title: "Chosen")
+  let shared = Search(id: UUID(), title: "Shared")
+  #expect(SearchPeopleOperations.activeSearch(in: [first, chosen], sharedSearch: shared, preferredID: chosen.id) == shared)
+  #expect(SearchPeopleOperations.activeSearch(in: [first, chosen], sharedSearch: nil, preferredID: chosen.id) == chosen)
+  #expect(SearchPeopleOperations.activeSearch(in: [first, chosen], sharedSearch: nil, preferredID: UUID()) == first)
+}
+
+@Test
+func acceptingSharedSearchRemovesOnlyAnEmptyLocalRoot() throws {
+  let database = try DatabaseQueue()
+  try UrbaneDatabaseMigrations.makeMigrator().migrate(database)
+  let shared = Search(id: UUID(), title: "Shared")
+  let local = Search(id: UUID(), title: "Local")
+  try database.write { db in
+    try Search.insert { Search.Draft(shared) }.execute(db)
+    try Search.insert { Search.Draft(local) }.execute(db)
+    try SearchPeopleOperations.seedDefaults(searchID: local.id, jonID: UUID(), wendyID: UUID(), in: db)
+    try SearchPeopleOperations.removeEmptyLocalRoots(keeping: shared.id, in: db)
+  }
+  let searches = try database.read { db in try Search.fetchAll(db) }
+  #expect(searches == [shared])
+  #expect(try database.read { db in try Person.fetchAll(db) }.isEmpty)
+}
+
+@Test
+func acceptingSharedSearchRefusesToDeleteALocalSearchWithNeighborhoods() throws {
+  let database = try DatabaseQueue()
+  try UrbaneDatabaseMigrations.makeMigrator().migrate(database)
+  let shared = Search(id: UUID(), title: "Shared")
+  let local = Search(id: UUID(), title: "Local")
+  let neighborhood = Neighborhood(id: UUID(), searchID: local.id, name: "Williamsburg")
+  try database.write { db in
+    try Search.insert { Search.Draft(shared) }.execute(db)
+    try Search.insert { Search.Draft(local) }.execute(db)
+    try Neighborhood.insert { Neighborhood.Draft(neighborhood) }.execute(db)
+  }
+  #expect(throws: LocalSearchCleanupError.localSearchContainsData) {
+    try database.write { db in
+      try SearchPeopleOperations.removeEmptyLocalRoots(keeping: shared.id, in: db)
+    }
+  }
+  #expect(try database.read { db in try Search.find(local.id).fetchOne(db) } == local)
+}

@@ -9,16 +9,22 @@ let package = Package(
     .library(name: "UrbaneCore", targets: ["UrbaneCore"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
+    .package(path: "../Vendor/sqlite-data"),
+    .package(url: "https://github.com/groue/GRDB.swift", from: "7.6.0"),
+    .package(url: "https://github.com/pointfreeco/swift-structured-queries", from: "0.39.1"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
     .package(path: "../../jon-platform/packages/LLMHandoffKit"),
     .package(path: "../../jon-platform/packages/LLMClientKit"),
+    .package(path: "../../jon-platform/packages/CloudSyncKit"),
   ],
   targets: [
     .target(
       name: "UrbaneSchema",
       dependencies: [
         .product(name: "SQLiteData", package: "sqlite-data"),
+        .product(name: "GRDB", package: "GRDB.swift"),
+        .product(name: "StructuredQueriesCore", package: "swift-structured-queries"),
+        .product(name: "CloudSyncKit", package: "CloudSyncKit"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
     ),
@@ -26,6 +32,8 @@ let package = Package(
       name: "UrbaneCore",
       dependencies: [
         "UrbaneSchema",
+        .product(name: "SQLiteData", package: "sqlite-data"),
+        .product(name: "GRDB", package: "GRDB.swift"),
         .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "LLMHandoffKit", package: "LLMHandoffKit"),
         .product(name: "LLMClientKit", package: "LLMClientKit"),
@@ -37,6 +45,8 @@ let package = Package(
       dependencies: [
         "UrbaneSchema",
         .product(name: "SQLiteData", package: "sqlite-data"),
+        .product(name: "GRDB", package: "GRDB.swift"),
+        .product(name: "StructuredQueriesCore", package: "swift-structured-queries"),
       ]
     ),
     .testTarget(
