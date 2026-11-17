@@ -82,11 +82,25 @@ struct BuildingCommuteSection: View {
         Text("Transit times have not been calculated yet.").foregroundStyle(.secondary)
       } else {
         ForEach(commutes) { commute in
-          VStack(alignment: .leading, spacing: 3) {
-            Text(commute.destination.displayName)
-            Text("\(Duration.seconds(commute.transitSeconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))) · Apple Maps · \(commute.computedAt.formatted(date: .abbreviated, time: .omitted))")
-              .font(.caption).foregroundStyle(.secondary)
+          Button {
+            model.openTransitDirections(for: building, to: commute.destination)
+          } label: {
+            HStack {
+              VStack(alignment: .leading, spacing: 3) {
+                Text(commute.destination.displayName)
+                  .foregroundStyle(.primary)
+                Text("\(Duration.seconds(commute.transitSeconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))) · Apple Maps · \(commute.computedAt.formatted(date: .abbreviated, time: .omitted))")
+                  .font(.caption).foregroundStyle(.secondary)
+              }
+              Spacer()
+              Image(systemName: "arrow.up.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
           }
+          .buttonStyle(.plain)
+          .accessibilityHint("Opens transit directions in Maps")
         }
       }
       Button("Refresh transit times", systemImage: "arrow.clockwise") {

@@ -19,6 +19,11 @@ public struct RentListingExtraction: Equatable, Sendable {
   public let unitsFound: Int
   public let candidates: [RentListingCandidate]
 
+  public var noCandidatesMessage: String {
+    if unitsFound == 0 { return "No rental units found on this page." }
+    return "Found \(unitsFound) units on this page, none with 2 bedrooms. If the page has a 2 beds tab, tap it, then Extract rents again."
+  }
+
   public init(unitsFound: Int, candidates: [RentListingCandidate]) {
     self.unitsFound = unitsFound
     self.candidates = candidates

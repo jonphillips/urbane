@@ -14,6 +14,7 @@ final class UrbaneMapModel {
   @ObservationIgnored @Dependency(\.placeSearch) private var placeSearch
   @ObservationIgnored @Dependency(\.date.now) var now
   @ObservationIgnored @Dependency(\.commuteClient) var commuteClient
+  @ObservationIgnored @Dependency(\.transitDirectionsClient) var transitDirectionsClient
   @ObservationIgnored @Dependency(\.modelClient) var modelClient
   @ObservationIgnored @FetchAll(Search.all) var searches
   @ObservationIgnored @FetchAll(Neighborhood.order(by: \.name)) var neighborhoods
@@ -33,6 +34,10 @@ final class UrbaneMapModel {
   var commuteErrors: [UUID: String] = [:]
   var commuteBuildingsInProgress: Set<UUID> = []
   var currentDate: Date { now }
+
+  func openTransitDirections(for building: Building, to destination: CommuteDestination) {
+    Task { await transitDirectionsClient.open(building, destination) }
+  }
 
   func isRentObservationStale(_ observation: RentObservation) -> Bool {
     let cutoff = Calendar.current.date(byAdding: .month, value: -6, to: now) ?? now
