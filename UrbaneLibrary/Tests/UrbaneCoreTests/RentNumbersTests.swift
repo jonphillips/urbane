@@ -97,6 +97,28 @@ import UrbaneSchema
     #expect(!text.contains("$4,000 for rent"))
   }
 
+  @Test func reducerKeepsTextAfterVoidAriaHiddenImage() {
+    let html = "<div><p><img src=photo aria-hidden=\"true\">$4,395 for rent</p><p>Unit 1F · 2 beds</p></div>"
+    #expect(StreetEasyPageReducer.reduce(html) == "$4,395 for rent Unit 1F · 2 beds")
+  }
+
+  @Test func reducerKeepsTextAfterHiddenVoidInput() {
+    let html = "<form><input type=\"hidden\" name=\"x\" hidden><p>$4,395 for rent</p></form>"
+    #expect(StreetEasyPageReducer.reduce(html) == "$4,395 for rent")
+  }
+
+  @Test func reducerDoesNotTreatHiddenClassNamesAsHiddenAttributes() {
+    let html = "<div class=\"block hidden-print\"><p>$4,395 for rent</p></div>"
+    #expect(StreetEasyPageReducer.reduce(html) == "$4,395 for rent")
+  }
+
+  @Test func reducerKeepsListingBeforeSimilarHomesHeading() {
+    let html = "<div id=\"page\"><section><p>$4,395 for rent · 2 beds · #1F</p></section><h2>Similar homes nearby</h2><div><p>$4,000 for rent</p></div></div>"
+    let text = StreetEasyPageReducer.reduce(html)
+    #expect(text == "$4,395 for rent · 2 beds · #1F")
+    #expect(!text.contains("$4,000"))
+  }
+
   @Test func extractorSendsReducedListingTextToOnDeviceModel() async throws {
     let html = "<html><head><script>private menu</script></head><main><p>978 2nd Avenue #1F</p><p>$4,395 for rent · 2 beds</p><section><h2>Similar homes</h2>$4,000 for rent</section></main></html>"
     let extraction = try await withDependencies {

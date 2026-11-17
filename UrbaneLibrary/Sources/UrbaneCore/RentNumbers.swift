@@ -250,13 +250,15 @@ public enum StreetEasyPageReducer {
   private struct Element {
     var name: String
     var suppressed: Bool
-    var start: String.Index
   }
 
   private static let hiddenElements: Set<String> = [
     "head", "script", "style", "svg", "noscript", "template", "iframe", "nav", "header", "footer",
   ]
   private static let blockElements: Set<String> = ["section", "article", "aside", "div", "main"]
+  private static let voidElements: Set<String> = [
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr",
+  ]
 
   /// Intentionally lossy: drops markup and non-visible/interface content, plus similar-home blocks;
   /// retains bounded visible text for an on-device listing review.
@@ -278,23 +280,31 @@ public enum StreetEasyPageReducer {
         }
         let name = tagName(token)
         guard !name.isEmpty else { continue }
-        let attributes = token.lowercased()
+        let attributes = parseAttributes(token)
         let inherited = stack.last?.suppressed ?? false
-        let isSimilar = ["similar", "related-homes", "related_homes"].contains(where: attributes.contains)
-        let hiddenAttribute = attributes.contains(" hidden")
-          || attributes.contains("aria-hidden=\"true\"")
-          || attributes.contains("aria-hidden='true'")
-          || (attributes.contains("style=") && attributes.contains("display:none"))
+        let isSimilar = attributes.values.contains { value in
+          ["similar", "related-homes", "related_homes"].contains(where: value.contains)
+        }
+        let styleHidesElement = attributes["style"]?.split(separator: ";").contains { declaration in
+          let pair = declaration.split(separator: ":", maxSplits: 1).map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+          }
+          return pair.count == 2 && pair[0] == "display" && pair[1] == "none"
+        } ?? false
+        let hiddenAttribute = attributes.keys.contains("hidden")
+          || attributes["aria-hidden"]?.lowercased() == "true"
+          || styleHidesElement
         let suppressed = inherited || hiddenElements.contains(name) || isSimilar || hiddenAttribute
-        stack.append(Element(name: name, suppressed: suppressed, start: output.endIndex))
+        let selfClosing = token.dropLast().trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("/")
+        if !selfClosing, !voidElements.contains(name) {
+          stack.append(Element(name: name, suppressed: suppressed))
+        }
       } else if stack.allSatisfy({ !$0.suppressed }) {
         let visible = decodeEntities(token)
         let collapsed = visible.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard !collapsed.isEmpty else { continue }
         if collapsed.localizedCaseInsensitiveContains("similar homes"),
            let block = stack.lastIndex(where: { blockElements.contains($0.name) }) {
-          let start = stack[block].start
-          output = String(output[..<start])
           for index in block..<stack.count { stack[index].suppressed = true }
           continue
         }
@@ -316,6 +326,44 @@ public enum StreetEasyPageReducer {
   private static func tagName(_ token: String) -> String {
     let content = token.dropFirst().drop(while: { $0.isWhitespace || $0 == "/" })
     return String(content.prefix(while: { $0.isLetter || $0.isNumber || $0 == "-" }).lowercased())
+  }
+
+  private static func parseAttributes(_ token: String) -> [String: String] {
+    var attributes: [String: String] = [:]
+    let characters = Array(token)
+    var index = 1
+    while index < characters.count, characters[index].isWhitespace == false,
+          characters[index] != "/", characters[index] != ">" { index += 1 }
+    while index < characters.count {
+      while index < characters.count, characters[index].isWhitespace || characters[index] == "/" { index += 1 }
+      guard index < characters.count, characters[index] != ">" else { break }
+      let start = index
+      while index < characters.count, !characters[index].isWhitespace,
+            characters[index] != "=", characters[index] != "/", characters[index] != ">" { index += 1 }
+      guard index > start else { index += 1; continue }
+      let name = String(characters[start..<index]).lowercased()
+      while index < characters.count, characters[index].isWhitespace { index += 1 }
+      var value: String?
+      if index < characters.count, characters[index] == "=" {
+        index += 1
+        while index < characters.count, characters[index].isWhitespace { index += 1 }
+        if index < characters.count, characters[index] == "\"" || characters[index] == "'" {
+          let quote = characters[index]
+          index += 1
+          let valueStart = index
+          while index < characters.count, characters[index] != quote { index += 1 }
+          value = String(characters[valueStart..<index])
+          if index < characters.count { index += 1 }
+        } else {
+          let valueStart = index
+          while index < characters.count, !characters[index].isWhitespace,
+                characters[index] != ">" { index += 1 }
+          value = String(characters[valueStart..<index]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
+      }
+      attributes[name] = value ?? ""
+    }
+    return attributes
   }
 
   private static func decodeEntities(_ value: String) -> String {
