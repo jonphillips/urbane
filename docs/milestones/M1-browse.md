@@ -126,6 +126,62 @@ Q R S W), a color for every route in the snapshot, and nearest-station ordering 
 gate: on the iPad, Jon can pick out the stations and their lines on the 3D map around Union Square
 and Williamsburg without hunting, and a real building's sheet lists the stations he'd actually use.
 
+### S7b — Fixes from the S6 and S7 device pass
+
+Jon's iPad pass on 2026-11-17 found two problems.
+
+**1. Rent capture finds nothing on a real page.** On 420 Kent's building page, showing its 2BR
+units, Extract rents says "No 2 bedroom rental candidates were found". The page-text reducer isn't
+the cause; the on-device model is. Run on this Mac against the two real fixtures, with today's
+plain-text request, it answers `[]` for both pages. With guided generation (a JSON schema), and
+without the example JSON in the instructions, it returned every unit with the right bedroom count
+on each of three runs. That's all 12 units on the building page and #560 at $7,482 on the listing.
+The example JSON matters: with it left in, the model copied it back (`1F`, $4,395) on the listing
+page.
+
+- **Ask for every unit, then filter in code.** Send `ModelRequest(responseFormat: .jsonSchema(…))`,
+  which `OnDeviceModelClient` already turns into a `GenerationSchema`. The schema is an object with
+  one required array, `listings` ("Every rental unit currently listed on the page"). Each item is an
+  object with three required properties:
+  - `bedrooms` (integer): "Bedrooms, from text like 2 beds; 0 for a studio. Never the rooms count."
+  - `rent` (integer): "Monthly base rent in dollars"
+  - `unit` (string): "Unit number, e.g. 1009"
+- **Replace the instructions with exactly this text**, which contains no example values:
+  > You read the visible text of a StreetEasy rental page. List every rental unit the page
+  > currently offers: its unit number (as written after #), its base rent, and its bedrooms from
+  > "N beds" or "N bed" (0 for a studio; "rooms" is not bedrooms). Use only numbers shown on the
+  > page. Skip price history, neighborhood medians, and similar or nearby homes. If no unit is
+  > offered, return an empty list.
+- **Keep only `bedrooms == 2` and `rent > 0`,** and strip a leading `#` and whitespace from the unit.
+  Parse strictly. An answer that doesn't decode is an error that says so, not an empty list.
+- **Say what was found.** When there are no 2BR candidates, the message names what the model saw:
+  "Found 9 units on this page, none with 2 bedrooms", or "No rental units found on this page".
+- **Copy page text.** After a capture with no candidates, the rent section offers "Copy page text",
+  which puts on the clipboard exactly the reduced text that was sent to the model. The iPad gets
+  StreetEasy's mobile layout, while our fixtures are the desktop one, so this is how Jon hands us
+  the mobile page as a fixture if the fix isn't enough there.
+
+**2. Subway markers: bigger close up, and visible from higher up.** Jon: "50% bigger when I'm very
+zoomed in" and "visible at a higher altitude". Today markers appear only below a 4,440 m camera
+distance, at a fixed 21 pt bullet.
+
+- **Show markers up to a 10,000 m camera distance.** Jon's Midtown-to-Long Island City view showed
+  none.
+- **Scale with camera distance.** The bullet diameter, the bullet font and the marker padding are
+  1.5× today's size at 600 m or closer and 1.0× at 4,440 m or farther, linear in between. The name
+  threshold (1,500 m) is unchanged.
+- **Put the scale in `UrbaneCore`** as a pure `SubwayMarkerScale.scale(cameraDistance:)` with tests:
+  1.5 at 600 m and below, 1.0 at 4,440 m and above, and a value strictly between at 2,000 m. Put
+  the 10,000 m cutoff next to it.
+- If continuous resizing stutters with a lot of markers, round the scale to steps of 0.1.
+
+**Done when:** tests cover the request's schema and instructions (no `4395` or `1F` in them), the
+2BR filter and unit normalization on a structured answer, an undecodable answer becoming an error,
+the existing real-fixture reducer tests, and the marker scale. Device gate: Capture from
+StreetEasy on 420 Kent's building page offers #560, #802 and #1009 and nothing else. Subway
+markers show at the altitude of Jon's Midtown/LIC screenshot, and are about half again as big
+fully zoomed in.
+
 ### S8 — Two opinions, sharing on
 
 The `people` table and the "this is me" binding, following Galavant ADR-0051. Per-person reactions,
@@ -151,6 +207,7 @@ the building has at least one Tuesday stop.
 - **Dispatch 4:** S6.
 - **Dispatch 5:** S7, the subway on the map. It goes ahead of sharing because transit decides
   whether a building is worth having at all (Jon, 2026-11-16).
+- **Dispatch 5b:** S7b, fixes from the S6 and S7 device pass (Jon, 2026-11-17), ahead of sharing.
 - **Dispatch 6:** S8, alone (sync and sharing).
 - **Dispatch 7:** S9.
 
@@ -163,5 +220,6 @@ the building has at least one Tuesday stop.
 - [x] S5 — Neighborhood chapters
 - [x] S6 — Rent numbers and commutes
 - [x] S7 — The subway on the map
+- [ ] S7b — Fixes from the S6 and S7 device pass
 - [ ] S8 — Two opinions, sharing on
 - [ ] S9 — "A Tuesday here"

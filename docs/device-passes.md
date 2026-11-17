@@ -9,8 +9,10 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
 
 ## Owed now
 
-*(nothing yet)*
-- **M1 S6:** Check transit ETA calculation and refresh for a real building on iPad. ([M1](milestones/M1-browse.md))
+- **M1 S6:** Check transit ETA calculation and refresh for a real building on iPad. Also: import the
+  StreetEasy 2BR CSV (West Village shows a dated median and sparkline); Edit links enables Capture
+  from StreetEasy; on 420 Kent, the building sheet stays open through capture, review and save. Rent
+  capture itself failed on 2026-11-17 and is re-checked under S7b. ([M1](milestones/M1-browse.md))
 - **M1 S7:** On the iPad, confirm route markers are easy to pick out on the 3D map around Union Square and Williamsburg, and confirm a real building sheet lists the stations Jon would use. ([M1](milestones/M1-browse.md))
 
 ## Held
