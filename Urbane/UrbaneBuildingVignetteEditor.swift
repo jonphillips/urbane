@@ -8,6 +8,7 @@ struct BuildingVignetteEditor: View {
   let building: Building
   let model: UrbaneMapModel
   let vignette: BuildingVignette?
+  let onSave: (UUID) -> Void
   @Environment(\.dismiss) private var dismiss
   @State private var query: String
   @State private var caption: String
@@ -19,10 +20,14 @@ struct BuildingVignetteEditor: View {
   @State private var camera: MapCameraPosition
   private let imageryClient = UrbaneImageryClient()
 
-  init(building: Building, model: UrbaneMapModel, vignette: BuildingVignette?, initialCaption: String = "") {
+  init(
+    building: Building, model: UrbaneMapModel, vignette: BuildingVignette?,
+    initialCaption: String = "", onSave: @escaping (UUID) -> Void = { _ in }
+  ) {
     self.building = building
     self.model = model
     self.vignette = vignette
+    self.onSave = onSave
     _query = State(initialValue: vignette?.placeName ?? building.address)
     _caption = State(initialValue: vignette?.caption ?? initialCaption)
     _selected = State(initialValue: PlaceMatch(
@@ -88,8 +93,12 @@ struct BuildingVignetteEditor: View {
         ToolbarItem(placement: .confirmationAction) {
           Button("Save") {
             guard let selected else { return }
-            if let vignette { model.updateBuildingVignette(vignette, place: selected, caption: caption) }
-            else { model.addBuildingVignette(building: building, place: selected, caption: caption) }
+            if let vignette {
+              model.updateBuildingVignette(vignette, place: selected, caption: caption)
+            } else {
+              let id = model.addBuildingVignette(building: building, place: selected, caption: caption)
+              onSave(id)
+            }
             dismiss()
           }.disabled(selected == nil)
         }

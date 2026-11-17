@@ -108,12 +108,14 @@ final class UrbaneMapModel {
     }
   }
 
-  func addBuildingVignette(building: Building, place: PlaceMatch, caption: String) {
+  @discardableResult
+  func addBuildingVignette(building: Building, place: PlaceMatch, caption: String) -> UUID {
+    let id = uuid()
     withErrorReporting {
       try database.write { db in
         try BuildingVignette.insert {
           BuildingVignette(
-            id: uuid(), buildingID: building.id, placeName: place.name,
+            id: id, buildingID: building.id, placeName: place.name,
             latitude: place.latitude, longitude: place.longitude,
             mapItemIdentifier: place.mapItemIdentifier, caption: caption,
             sortOrder: buildingVignettes.filter { $0.buildingID == building.id }.count
@@ -121,6 +123,7 @@ final class UrbaneMapModel {
         }.execute(db)
       }
     }
+    return id
   }
 
   func updateBuildingVignette(_ vignette: BuildingVignette, place: PlaceMatch, caption: String) {

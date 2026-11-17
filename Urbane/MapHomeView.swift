@@ -73,8 +73,12 @@ struct MapHomeView: View {
               }
             }
         }
+        .presentationSizing(.page)
       }
-      .sheet(item: $selectedNeighborhood) { neighborhood in NeighborhoodDetailSheet(neighborhood: neighborhood, model: model) }
+      .sheet(item: $selectedNeighborhood) { neighborhood in
+        NeighborhoodDetailSheet(neighborhood: neighborhood, model: model)
+          .presentationSizing(.page)
+      }
       .task { model.bootstrap() }
     }
   }

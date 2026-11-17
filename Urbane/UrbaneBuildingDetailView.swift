@@ -16,6 +16,7 @@ struct BuildingDetailSheet: View {
   let building: Building
   let model: UrbaneMapModel
   @State private var postcard: UIImage?
+  @State private var selectedGalleryPage = "postcard"
   @State private var showingBrowser = false
   @State private var showingImagePicker = false
   @State private var browserDestination: BrowserDestination?
@@ -26,6 +27,9 @@ struct BuildingDetailSheet: View {
   @State private var addingVignette = false
   @State private var addingFacade = false
   @State private var fixingLocation = false
+  @State private var showingMapViewer = false
+  @State private var showingHeroViewer = false
+  @State private var fullScreenHero: UIImage?
 
   private let imageryClient = UrbaneImageryClient()
 
@@ -41,12 +45,18 @@ struct BuildingDetailSheet: View {
     List {
       Section {
         VStack(alignment: .leading, spacing: 8) {
-          TabView {
-          if let postcard {
-              GalleryImage(image: postcard, title: "3D map")
-          } else {
-              PostcardFallback(building: currentBuilding)
+          TabView(selection: $selectedGalleryPage) {
+          Button { showingMapViewer = true } label: {
+            Group {
+              if let postcard {
+                GalleryImage(image: postcard, title: "3D map")
+              } else {
+                PostcardFallback(building: currentBuilding)
+              }
+            }
           }
+          .buttonStyle(.plain)
+          .tag("postcard")
           let vignettes = model.buildingVignettes.filter { $0.buildingID == building.id }.sorted { $0.sortOrder < $1.sortOrder }
           if vignettes.isEmpty {
             LookAroundGalleryPage(
@@ -54,17 +64,26 @@ struct BuildingDetailSheet: View {
               latitude: currentBuilding.latitude, longitude: currentBuilding.longitude,
               mapItemIdentifier: currentBuilding.mapItemIdentifier
             ) { addingFacade = true }
+              .tag("facade")
           } else {
             ForEach(vignettes) { vignette in
               LookAroundGalleryPage(vignette: vignette) { editingVignette = vignette }
+                .tag(vignette.id.uuidString)
             }
           }
           if let data = currentBuilding.heroImage, let hero = UIImage(data: data) {
+            Button {
+              fullScreenHero = hero
+              showingHeroViewer = true
+            } label: {
               GalleryImage(image: hero, title: "Chosen building image")
+            }
+            .buttonStyle(.plain)
+            .tag("hero")
           }
           }
           .tabViewStyle(.page(indexDisplayMode: .automatic))
-          .frame(height: 220)
+          .aspectRatio(3.0 / 2.0, contentMode: .fit)
         }
         .padding(.vertical, 4)
       }
@@ -160,6 +179,12 @@ struct BuildingDetailSheet: View {
       }
     }
     .task(id: imageRecipe) { await loadImagery() }
+    .fullScreenCover(isPresented: $showingMapViewer) {
+      FullScreenPostcardMap(building: currentBuilding)
+    }
+    .fullScreenCover(isPresented: $showingHeroViewer) {
+      if let fullScreenHero { FullScreenHeroImage(image: fullScreenHero) }
+    }
     .onChange(of: showingBrowser) { _, isShowing in
       if !isShowing, !imageCandidates.isEmpty { showingImagePicker = true }
     }
@@ -180,10 +205,14 @@ struct BuildingDetailSheet: View {
       WebExtractorBrowser(startURL: destination.url, title: destination.title, confirmLabel: "Done") { _, _ in .extracted }
     }
     .sheet(isPresented: $addingVignette) {
-      BuildingVignetteEditor(building: currentBuilding, model: model, vignette: nil)
+      BuildingVignetteEditor(building: currentBuilding, model: model, vignette: nil) { id in
+        selectedGalleryPage = id.uuidString
+      }
     }
     .sheet(isPresented: $addingFacade) {
-      BuildingVignetteEditor(building: currentBuilding, model: model, vignette: nil, initialCaption: "Facade")
+      BuildingVignetteEditor(building: currentBuilding, model: model, vignette: nil, initialCaption: "Facade") { id in
+        selectedGalleryPage = id.uuidString
+      }
     }
     .sheet(item: $editingVignette) { vignette in
       BuildingVignetteEditor(building: currentBuilding, model: model, vignette: vignette)
@@ -312,13 +341,13 @@ struct GalleryImage: View {
 
   var body: some View {
     Image(uiImage: image).resizable().scaledToFill()
-      .frame(maxWidth: .infinity).frame(height: 220)
+      .frame(maxWidth: .infinity).aspectRatio(3.0 / 2.0, contentMode: .fit)
       .overlay(alignment: .bottomLeading) { GalleryLabel(text: title) }
       .clipShape(RoundedRectangle(cornerRadius: 14))
   }
 }
 
-private struct GalleryLabel: View {
+struct GalleryLabel: View {
   let text: String
 
   var body: some View {
@@ -337,7 +366,7 @@ struct GalleryUnavailable: View {
       Text(title).font(.headline)
       Text(detail).font(.footnote).foregroundStyle(.secondary)
     }
-    .frame(maxWidth: .infinity).frame(height: 220)
+    .frame(maxWidth: .infinity).aspectRatio(3.0 / 2.0, contentMode: .fit)
     .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
   }
 }
@@ -352,124 +381,8 @@ struct PostcardFallback: View {
       Text(building.address).font(.subheadline).foregroundStyle(.secondary)
       Text("Map imagery will appear when Apple has coverage.").font(.footnote).foregroundStyle(.secondary)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .aspectRatio(3.0 / 2.0, contentMode: .fit)
     .padding(18).background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
-  }
-}
-
-struct LookAroundGalleryPage: View {
-  let id: String
-  let placeName: String
-  let caption: String
-  let latitude: Double
-  let longitude: Double
-  let mapItemIdentifier: String?
-  let onAdjust: (() -> Void)?
-  @State private var image: UIImage?
-  @State private var scene: MKLookAroundScene?
-  private let imageryClient = UrbaneImageryClient()
-
-  init(vignette: BuildingVignette, onAdjust: @escaping () -> Void) {
-    self.init(
-      id: vignette.id.uuidString, placeName: vignette.placeName, caption: vignette.caption,
-      latitude: vignette.latitude, longitude: vignette.longitude,
-      mapItemIdentifier: vignette.mapItemIdentifier, onAdjust: onAdjust
-    )
-  }
-
-  init(neighborhoodVignette: NeighborhoodVignette) {
-    self.init(
-      id: neighborhoodVignette.id.uuidString, placeName: neighborhoodVignette.placeName,
-      caption: neighborhoodVignette.caption, latitude: neighborhoodVignette.latitude,
-      longitude: neighborhoodVignette.longitude, mapItemIdentifier: neighborhoodVignette.mapItemIdentifier,
-      onAdjust: nil
-    )
-  }
-
-  init(
-    id: String, placeName: String, caption: String, latitude: Double, longitude: Double,
-    mapItemIdentifier: String?, onAdjust: (() -> Void)?
-  ) {
-    self.id = id
-    self.placeName = placeName
-    self.caption = caption
-    self.latitude = latitude
-    self.longitude = longitude
-    self.mapItemIdentifier = mapItemIdentifier
-    self.onAdjust = onAdjust
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Group {
-        if let image {
-          Image(uiImage: image).resizable().scaledToFill()
-        } else if let scene {
-          LookAroundPreview(initialScene: scene, allowsNavigation: true)
-        } else {
-          GalleryUnavailable(title: "No Look Around coverage", detail: "The map postcard remains available.")
-        }
-      }
-      .frame(maxWidth: .infinity).frame(height: 174)
-      .clipShape(RoundedRectangle(cornerRadius: 14))
-      HStack {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(placeName).font(.subheadline.weight(.semibold))
-          Text(caption).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-        }
-        Spacer()
-        if let onAdjust {
-          Button("Adjust view", systemImage: "viewfinder", action: onAdjust)
-            .labelStyle(.iconOnly).accessibilityLabel("Adjust view for \(placeName)")
-        }
-      }
-      .padding(.horizontal, 3)
-    }
-    .task(id: id + "|\(latitude)|\(longitude)|\(mapItemIdentifier ?? "coordinate")") {
-      let snapshot = await imageryClient.lookAroundSnapshot(
-        latitude: latitude, longitude: longitude, mapItemIdentifier: mapItemIdentifier
-      )
-      image = snapshot
-      scene = snapshot == nil
-        ? await imageryClient.lookAroundScene(latitude: latitude, longitude: longitude, mapItemIdentifier: mapItemIdentifier)
-        : nil
-    }
-  }
-}
-
-struct ReviewCard: View {
-  let review: BuildingReview
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 5) {
-      HStack(spacing: 4) {
-        Text(review.source).fontWeight(.semibold)
-        Text("· \(review.subject == .building ? "building" : "landlord")")
-        if let rating = review.rating, let scale = review.ratingScale {
-          Text("· \(rating.formatted(.number.precision(.fractionLength(0...1))))/\(scale.formatted(.number.precision(.fractionLength(0...1))))")
-        }
-        if let count = review.reviewCount { Text("· \(count) reviews") }
-      }
-      .font(.subheadline)
-      HStack {
-        if let month = Self.formattedMonth(review.newestReviewMonth) { Text("Newest \(month)") }
-        Text("Gathered \(review.gatheredAt.formatted(date: .abbreviated, time: .omitted))")
-      }.font(.caption).foregroundStyle(.secondary)
-      Text(review.summary).font(.body).foregroundStyle(.primary)
-      Label("Open source", systemImage: "arrow.up.right.square").font(.caption)
-    }
-    .padding(.vertical, 3)
-  }
-
-  private static func formattedMonth(_ value: String?) -> String? {
-    guard let value else { return nil }
-    let parts = value.split(separator: "-").compactMap { Int($0) }
-    guard parts.count == 2 else { return value }
-    var components = DateComponents()
-    components.year = parts[0]
-    components.month = parts[1]
-    components.day = 1
-    guard let date = Calendar.current.date(from: components) else { return value }
-    return date.formatted(.dateTime.month(.abbreviated).year())
   }
 }
