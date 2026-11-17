@@ -206,15 +206,51 @@ Jon's iPad pass on 2026-11-17: rent capture and the subway markers work. Two sma
 passes. Device gate: on 420 Kent's building page, the Studio tab shows the new message; tapping
 a commute row opens Apple Maps with transit directions from the building to that destination.
 
-### S8 — Two opinions, sharing on
+### S8a — Two opinions, on one device
 
-The `people` table and the "this is me" binding, following Galavant ADR-0051. Per-person reactions,
-status changes with a required rejection reason, and a filter for Rejected. Then turn on sync and
-sharing, following jon-platform § Creating and accepting the share, plus CloudSyncKit's sync health
-and backup.
-**Done when:** the gate passes and the schema is imported with `cktool`. **Escalated to Jon** (sync,
-sharing, Production schema). Device gate: Wendy accepts the share on her iPad, and each of us sees the
-other's reaction within a minute.
+The opinion half of the old S8, with sync still off. It needs no schema change: `people` and `reactions`
+have existed since S1's migration.
+
+- **People.** Seed `people` rows for Jon and Wendy (`displayName` only, under the one `searches` root).
+  "This is me" is a **device-local** choice (a `UserDefaults` key, not synced), picked once in Settings
+  and shown there. This is the interim shape jon-platform `persistence-and-sync.md` allows; S8b binds
+  it to the iCloud account (`iCloudUserRecordName`, Galavant ADR-0051).
+- **Per-person reactions.** On the building sheet, "me" can set a rating (1–5), a favorite, and a note.
+  It's one `reactions` row per (building, person), updated in place and never duplicated. Both
+  people's reactions are shown, labelled by `displayName`. With no "this is me" chosen, the controls
+  say to pick one in Settings.
+- **Status with a required reason.** The building's status can be changed on its sheet. Moving to
+  Rejected requires a non-empty `rejectionReason`, and leaving Rejected clears it.
+- **A Rejected filter on the map.** Rejected buildings are hidden by default, with a toggle to show them.
+
+**Done when:** `UrbaneLibrary` tests cover the reaction upsert (one row per pair, edits in place),
+the rejection-reason rule, and the filter. **Not escalated:** no schema, sync or sharing change. If
+the slice finds it needs a migration, stop and say so in the PR. Device gate: Jon sets a reaction as
+himself, switches "this is me" to Wendy, sets hers, and sees both on the sheet.
+
+### S8b — Sync and sharing on, through Production
+
+The sync half of the old S8. **Escalated to Jon** (sync, sharing, Production schema). The order,
+and who does each step, is [PROD-CUTOVER.md](../PROD-CUTOVER.md). Read it before starting. In short:
+
+- iCloud and CloudKit entitlements, `CKSharingSupported`, and the remote-notification background mode.
+- A `SyncEngine` through `CloudSyncKit`, started with `startImmediately: false` behind a persisted
+  opt-in and an account check. Sync health and backup/restore in Settings.
+- **The patched SQLiteData.** Jon's library has never synced, so its first upload goes into an empty
+  Production zone. Unpatched SQLiteData deletes single-parent children when they reach the server
+  before their parents (jon-platform `SEAM-LEDGER.md`, "Patched SQLiteData"; Yes Chef lost 669 rows
+  that way). Use Yes Chef's vendored copy as a local-package override, as Yes Chef does.
+- Share create (owner only) and accept (both scene paths), following jon-platform § Creating and
+  accepting the share and Galavant's code. "This is me" binds to the iCloud user per Galavant
+  ADR-0051; read its open-question answers first.
+- `testflight.conf` with `SCHEMA_GATE=1` and `EXPECTED_SCHEMA_FIELDS`, and the full CloudKit schema
+  made with `cktool` (§ Adding a synced table or column).
+
+**Done when:** the gate passes; the schema is imported to Development with `cktool` and matches
+`EXPECTED_SCHEMA_FIELDS`; and the PR lists the PROD-CUTOVER steps that are Jon's. Device gate (the
+held sharing pass): after the cutover, Wendy accepts the share on her own iPad from TestFlight; each
+of us sees the other's reaction within a minute; and every table's row count matches between
+Jon's and Wendy's backups.
 
 ### S9 — "A Tuesday here"
 
@@ -233,7 +269,9 @@ the building has at least one Tuesday stop.
   whether a building is worth having at all (Jon, 2026-11-16).
 - **Dispatch 5b:** S7b, fixes from the S6 and S7 device pass (Jon, 2026-11-17), ahead of sharing.
 - **Dispatch 5c:** S7c, two touches from the S7b pass (Jon, 2026-11-17), ahead of sharing.
-- **Dispatch 6:** S8, alone (sync and sharing).
+- **Dispatch 6:** S8a, opinions on one device.
+- **Dispatch 6b:** S8b, alone (sync, sharing, Production). Split from the old S8 on 2026-11-17 so the opinion
+  work could start while the cutover plan is reviewed.
 - **Dispatch 7:** S9.
 
 ## Ledger
@@ -247,5 +285,6 @@ the building has at least one Tuesday stop.
 - [x] S7 — The subway on the map
 - [x] S7b — Fixes from the S6 and S7 device pass
 - [x] S7c — Two touches from the S7b pass
-- [ ] S8 — Two opinions, sharing on
+- [ ] S8a — Two opinions, on one device
+- [ ] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"
