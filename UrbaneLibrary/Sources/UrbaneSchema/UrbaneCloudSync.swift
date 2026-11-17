@@ -87,24 +87,35 @@ public enum UrbaneCloudSync {
     try await CKContainer(identifier: configuration.containerIdentifier).userRecordID().recordName
   }
 
-  public static func sharedSearch(in db: Database) throws -> Search? {
+  public static func foreignOwnedSearchIDs(in db: Database) throws -> Set<Search.ID> {
+    var foreignIDs: Set<Search.ID> = []
     for search in try Search.fetchAll(db) {
-      let share = try SyncMetadata.find(search.syncMetadataID).select(\.share).fetchOne(db) ?? nil
-      if share != nil {
-        return search
+      let ownerName = try SyncMetadata.find(search.syncMetadataID).select(\.ownerName).fetchOne(db) ?? nil
+      if let ownerName, ownerName != CKCurrentUserDefaultName {
+        foreignIDs.insert(search.id)
       }
     }
-    return nil
+    return foreignIDs
+  }
+
+  public static func isSearchOwnedByCurrentUser(_ search: Search, in db: Database) throws -> Bool {
+    let ownerName = try SyncMetadata.find(search.syncMetadataID).select(\.ownerName).fetchOne(db) ?? nil
+    return ownerName == nil || ownerName == CKCurrentUserDefaultName
+  }
+
+  public static func foreignOwnedSearch(in db: Database) throws -> Search? {
+    let searches = try Search.fetchAll(db)
+    let foreignIDs = try foreignOwnedSearchIDs(in: db)
+    return SearchPeopleOperations.activeSearch(in: searches, foreignOwnedRootIDs: foreignIDs)
+      .flatMap { foreignIDs.contains($0.id) ? $0 : nil }
   }
 
   @discardableResult
   public static func reconcileAcceptedShare(in database: any DatabaseWriter) async throws -> Bool {
-    guard let sharedSearch = try await database.read({ try sharedSearch(in: $0) }) else { return false }
+    guard let sharedSearch = try await database.read({ try foreignOwnedSearch(in: $0) }) else { return false }
     try await database.write { db in
       try SearchPeopleOperations.removeEmptyLocalRoots(keeping: sharedSearch.id, in: db)
     }
-    UserDefaults.standard.set(sharedSearch.id.uuidString, forKey: "urbane.activeSearchID")
-    UserDefaults.standard.removeObject(forKey: "urbane.shareAcceptanceBlocked")
     return true
   }
 }

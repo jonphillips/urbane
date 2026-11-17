@@ -61,9 +61,8 @@ final class UrbaneSceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
         UserDefaults.standard.set("The invitation was accepted. The shared search is still loading.", forKey: "urbane.shareAcceptanceMessage")
       } catch LocalSearchCleanupError.localSearchContainsData {
-        UserDefaults.standard.set(true, forKey: "urbane.shareAcceptanceBlocked")
         UserDefaults.standard.set(
-          "The shared search was accepted, but this device already has apartment data. Export it before replacing this local search.",
+          "This device has local apartment data. It was kept on this device and was not merged into the shared search. The shared search is active; this message remains in People & identity.",
           forKey: "urbane.shareAcceptanceMessage"
         )
       } catch {

@@ -2,18 +2,21 @@ import SQLiteData
 
 public enum SearchPeopleOperations {
   public static func activeSearch(
-    in searches: [Search], sharedSearch: Search?, preferredID: Search.ID?
+    in searches: [Search], foreignOwnedRootIDs: Set<Search.ID>
   ) -> Search? {
-    sharedSearch ?? preferredID.flatMap { id in searches.first { $0.id == id } } ?? searches.first
+    searches.first { foreignOwnedRootIDs.contains($0.id) } ?? searches.first
   }
 
   /// Seeds the two household members once under the search's existing root.
+  @discardableResult
   public static func seedDefaults(
     searchID: Search.ID,
     jonID: Person.ID,
     wendyID: Person.ID,
+    foreignOwnedRootIDs: Set<Search.ID> = [],
     in db: Database
-  ) throws {
+  ) throws -> Bool {
+    guard !foreignOwnedRootIDs.contains(searchID) else { return false }
     let people = try Person.fetchAll(db).filter { $0.searchID == searchID }
     if !people.contains(where: { $0.displayName == "Jon" }) {
       try Person.insert { Person(id: jonID, searchID: searchID, displayName: "Jon") }.execute(db)
@@ -21,6 +24,7 @@ public enum SearchPeopleOperations {
     if !people.contains(where: { $0.displayName == "Wendy" }) {
       try Person.insert { Person(id: wendyID, searchID: searchID, displayName: "Wendy") }.execute(db)
     }
+    return true
   }
 
   /// Removes only a pristine, device-local root after this device accepts the shared root.
@@ -36,6 +40,37 @@ public enum SearchPeopleOperations {
       }
       try Search.delete().where { $0.id.eq(search.id) }.execute(db)
     }
+  }
+}
+
+public enum PersonIdentityClaimResult: Equatable, Sendable {
+  case claimed
+  case alreadyClaimed
+  case syncDisabled
+  case personNotFound
+  case claimedByAnotherAccount
+  case accountAlreadyClaimsAnotherPerson
+}
+
+public enum PersonIdentityOperations {
+  @discardableResult
+  public static func claim(
+    personID: Person.ID,
+    accountRecordName: String,
+    syncEnabled: Bool,
+    in db: Database
+  ) throws -> PersonIdentityClaimResult {
+    guard syncEnabled else { return .syncDisabled }
+    guard let person = try Person.find(personID).fetchOne(db) else { return .personNotFound }
+    if person.iCloudUserRecordName == accountRecordName { return .alreadyClaimed }
+    if person.iCloudUserRecordName != nil { return .claimedByAnotherAccount }
+
+    let people = try Person.fetchAll(db).filter { $0.searchID == person.searchID }
+    if people.contains(where: { $0.id != personID && $0.iCloudUserRecordName == accountRecordName }) {
+      return .accountAlreadyClaimsAnotherPerson
+    }
+    try Person.find(personID).update { $0.iCloudUserRecordName = #bind(accountRecordName) }.execute(db)
+    return .claimed
   }
 }
 

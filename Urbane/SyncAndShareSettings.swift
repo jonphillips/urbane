@@ -79,10 +79,20 @@ private final class UrbaneSyncStatusModel {
 private final class UrbaneShareModel: ObservableObject {
   @Published var sharedRecord: SharedRecord?
   @Published var message: String?
-  @Published private(set) var canShare = true
+  @Published private(set) var canShare = false
   @Dependency(\.defaultDatabase) private var database
   @Dependency(\.defaultSyncEngine) private var engine
   @Dependency(\.syncEngineAvailable) private var engineAvailable
+
+  func refreshOwnership(for search: Search?) async {
+    guard engineAvailable, let search else {
+      canShare = false
+      return
+    }
+    canShare = (try? await database.read { db in
+      try UrbaneCloudSync.isSearchOwnedByCurrentUser(search, in: db)
+    }) ?? false
+  }
 
   func share(_ search: Search?) async {
     guard engineAvailable, let search else {
@@ -90,10 +100,9 @@ private final class UrbaneShareModel: ObservableObject {
       return
     }
     do {
-      let existingShare: CKShare? = try await database.read { db in
-        try SyncMetadata.find(search.syncMetadataID).select(\.share).fetchOne(db) ?? nil
-      }
-      if let existingShare, existingShare.currentUserParticipant?.role != .owner {
+      guard try await database.read({ db in
+        try UrbaneCloudSync.isSearchOwnedByCurrentUser(search, in: db)
+      }) else {
         canShare = false
         message = "Only the person who owns this search can invite someone."
         return
@@ -158,8 +167,12 @@ struct SyncAndShareSettingsSection: View {
     }
     .task {
       await sync.refresh()
+      await sharing.refreshOwnership(for: mapModel.activeSearch)
       do { canBackup = try !(await DatabaseBackup.containsForeignOwnedRows(in: currentDatabase)) }
       catch { canBackup = false }
+    }
+    .onChange(of: mapModel.activeSearch?.id) { _, _ in
+      Task { await sharing.refreshOwnership(for: mapModel.activeSearch) }
     }
     .sheet(item: $sharing.sharedRecord) { CloudSharingView(sharedRecord: $0) }
     .fileExporter(

@@ -4,25 +4,32 @@ import SQLiteData
 import UrbaneSchema
 
 extension UrbaneMapModel {
-  var activeSearch: Search? {
-    let preferredID = UUID(uuidString: UserDefaults.standard.string(forKey: "urbane.activeSearchID") ?? "")
-    return SearchPeopleOperations.activeSearch(in: searches, sharedSearch: nil, preferredID: preferredID)
-  }
-
   func bindCurrentPerson(id: UUID?) {
     guard let id else { return }
     UserDefaults.standard.set(id.uuidString, forKey: "urbane.thisIsMe")
     Task {
       guard let recordName = try? await UrbaneCloudSync.currentUserRecordName() else { return }
-      withErrorReporting {
-        try database.write { db in
-          guard let person = try Person.find(id).fetchOne(db) else { return }
-          guard person.iCloudUserRecordName == nil || person.iCloudUserRecordName == recordName else {
-            message = "That person is already linked to a different iCloud account."
-            return
-          }
-          try Person.find(id).update { $0.iCloudUserRecordName = #bind(recordName) }.execute(db)
+      do {
+        let result = try await database.write { db in
+          try PersonIdentityOperations.claim(
+            personID: id,
+            accountRecordName: recordName,
+            syncEnabled: UrbaneCloudSync.isManuallyEnabled(),
+            in: db
+          )
         }
+        switch result {
+        case .claimed, .alreadyClaimed, .syncDisabled:
+          break
+        case .personNotFound:
+          message = "That person is no longer in the active search."
+        case .claimedByAnotherAccount:
+          message = "That person is linked to a different iCloud account. Your choice remains on this device."
+        case .accountAlreadyClaimsAnotherPerson:
+          message = "This iCloud account already identifies another person in the search. Your choice remains on this device."
+        }
+      } catch {
+        message = "Couldn’t save the iCloud identity: \(error.localizedDescription)"
       }
     }
   }
@@ -38,14 +45,10 @@ extension UrbaneMapModel {
 
   func reconcileAcceptedShare() async {
     do {
-      if try await UrbaneCloudSync.reconcileAcceptedShare(in: database) {
-        shareAcceptanceBlocked = false
-        message = nil
-      }
+      await refreshSearchOwnership()
+      _ = try await UrbaneCloudSync.reconcileAcceptedShare(in: database)
     } catch LocalSearchCleanupError.localSearchContainsData {
-      shareAcceptanceBlocked = true
-      UserDefaults.standard.set(true, forKey: "urbane.shareAcceptanceBlocked")
-      message = "The shared search is active, but this device already has apartment data. Export it before replacing this local search."
+      message = "This device has local apartment data. It was kept on this device and was not merged into the shared search. The shared search is active; see People & identity for this notice."
     } catch {
       message = "Couldn’t finish setting up the shared search: \(error.localizedDescription)"
     }

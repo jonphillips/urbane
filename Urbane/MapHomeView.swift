@@ -1,5 +1,4 @@
 import MapKit
-import SQLiteData
 import SwiftUI
 import UniformTypeIdentifiers
 import UrbaneCore
@@ -20,13 +19,10 @@ struct MapHomeView: View {
   @State private var stationRegion: MKCoordinateRegion?
   @State private var stationCameraDistance = Double.infinity
 
-  @FetchAll(Neighborhood.order(by: \.name)) private var neighborhoods
-  @FetchAll(Building.order(by: \.name)) private var buildings
-
   var body: some View {
     NavigationStack {
       Map(position: $camera) {
-        ForEach(neighborhoods) { neighborhood in
+        ForEach(model.neighborhoods) { neighborhood in
           MapCircle(
             center: CLLocationCoordinate2D(latitude: neighborhood.centerLatitude, longitude: neighborhood.centerLongitude),
             radius: max(neighborhood.latitudeSpan, neighborhood.longitudeSpan) * 55_500
@@ -41,7 +37,7 @@ struct MapHomeView: View {
           }
           .annotationTitles(.hidden)
         }
-        ForEach(BuildingBrowse.visibleBuildings(buildings, showingRejected: showingPassedBuildings)) { building in
+        ForEach(BuildingBrowse.visibleBuildings(model.buildings, showingRejected: showingPassedBuildings)) { building in
           Annotation(building.name, coordinate: CLLocationCoordinate2D(latitude: building.latitude, longitude: building.longitude)) {
             Button { selectedBuilding = building } label: {
               Image(systemName: "building.2.fill")
@@ -80,22 +76,15 @@ struct MapHomeView: View {
             .padding()
         }
       }
-      .overlay {
-        if model.shareAcceptanceBlocked {
-          VStack(spacing: 12) {
-            Image(systemName: "externaldrive.badge.exclamationmark").font(.largeTitle)
-            Text("This device already has apartment data.").font(.headline)
-            Text("Urbane accepted the shared search but paused browsing to avoid combining it with this local search. Export a backup before continuing.")
-              .multilineTextAlignment(.center)
-              .foregroundStyle(.secondary)
-            Button("Open backup and settings") { showingPeopleSettings = true }
-              .buttonStyle(.borderedProminent)
-          }
-          .padding(24)
-          .frame(maxWidth: 440)
-          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(.ultraThinMaterial)
+      .overlay(alignment: .top) {
+        if let message = model.message {
+          Text(message)
+            .font(.caption)
+            .multilineTextAlignment(.center)
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .padding()
+            .allowsHitTesting(false)
         }
       }
       .toolbar {
@@ -159,7 +148,10 @@ struct MapHomeView: View {
         Task { await model.bindToCurrentICloudPersonIfKnown() }
       }
       .onChange(of: model.searches.map(\.id)) { _, _ in
-        Task { await model.reconcileAcceptedShare() }
+        Task {
+          await model.refreshSearchOwnership()
+          await model.reconcileAcceptedShare()
+        }
       }
     }
   }
@@ -299,7 +291,6 @@ private struct AddNeighborhoodSheet: View {
 private struct AddBuildingSheet: View {
   let model: UrbaneMapModel
   @Environment(\.dismiss) private var dismiss
-  @FetchAll(Neighborhood.order(by: \.name)) private var neighborhoods
   @State private var neighborhoodID: UUID?
   @State private var query = ""
   @State private var name = ""
@@ -320,7 +311,7 @@ private struct AddBuildingSheet: View {
     NavigationStack {
       Form {
         Picker("Neighborhood", selection: $neighborhoodID) {
-          ForEach(neighborhoods) { Text($0.name).tag(Optional($0.id)) }
+          ForEach(model.neighborhoods) { Text($0.name).tag(Optional($0.id)) }
         }
         TextField("Name, address, or building URL", text: $query)
           .textInputAutocapitalization(.never).keyboardType(.URL)
@@ -336,7 +327,7 @@ private struct AddBuildingSheet: View {
         }
         TextField("Building name", text: $name)
         TextField("Address", text: $address)
-        if let neighborhood = neighborhoods.first(where: { $0.id == neighborhoodID }) {
+        if let neighborhood = model.neighborhoods.first(where: { $0.id == neighborhoodID }) {
           MapReader { proxy in
             Map(position: $pinCamera) {
               if let latitude = Double(manualLatitude), let longitude = Double(manualLongitude) {

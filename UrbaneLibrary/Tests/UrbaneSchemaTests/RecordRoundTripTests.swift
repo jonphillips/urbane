@@ -194,13 +194,60 @@ func defaultPeopleAreSeededOnceForTheSearch() throws {
 }
 
 @Test
-func activeSearchPrefersSharedRootThenDeviceChoiceThenFirstRoot() {
-  let first = Search(id: UUID(), title: "First")
-  let chosen = Search(id: UUID(), title: "Chosen")
-  let shared = Search(id: UUID(), title: "Shared")
-  #expect(SearchPeopleOperations.activeSearch(in: [first, chosen], sharedSearch: shared, preferredID: chosen.id) == shared)
-  #expect(SearchPeopleOperations.activeSearch(in: [first, chosen], sharedSearch: nil, preferredID: chosen.id) == chosen)
-  #expect(SearchPeopleOperations.activeSearch(in: [first, chosen], sharedSearch: nil, preferredID: UUID()) == first)
+func foreignRootIsActiveAndNeverGetsDefaultPeopleSeeded() throws {
+  let database = try DatabaseQueue()
+  try UrbaneDatabaseMigrations.makeMigrator().migrate(database)
+  let local = Search(id: UUID(), title: "Local")
+  let foreign = Search(id: UUID(), title: "Jon’s shared search")
+  let foreignIDs: Set<Search.ID> = [foreign.id]
+  try database.write { db in
+    try Search.insert { Search.Draft(local) }.execute(db)
+    try Search.insert { Search.Draft(foreign) }.execute(db)
+    #expect(SearchPeopleOperations.activeSearch(in: [local, foreign], foreignOwnedRootIDs: foreignIDs) == foreign)
+    let seededForeignRoot = try SearchPeopleOperations.seedDefaults(
+      searchID: foreign.id, jonID: UUID(), wendyID: UUID(), foreignOwnedRootIDs: foreignIDs, in: db
+    )
+    #expect(seededForeignRoot == false)
+    let seededLocalRoot = try SearchPeopleOperations.seedDefaults(
+      searchID: local.id, jonID: UUID(), wendyID: UUID(), foreignOwnedRootIDs: foreignIDs, in: db
+    )
+    #expect(seededLocalRoot)
+  }
+  let people = try database.read { db in try Person.fetchAll(db) }
+  #expect(people.count == 2)
+  #expect(people.allSatisfy { $0.searchID == local.id })
+}
+
+@Test
+func anICloudAccountCannotClaimTwoPeopleAndClaimsRequireSync() throws {
+  let database = try DatabaseQueue()
+  try UrbaneDatabaseMigrations.makeMigrator().migrate(database)
+  let search = Search(id: UUID())
+  let jon = Person(id: UUID(), searchID: search.id, displayName: "Jon")
+  let wendy = Person(id: UUID(), searchID: search.id, displayName: "Wendy")
+  try database.write { db in
+    try Search.insert { Search.Draft(search) }.execute(db)
+    try Person.insert { Person.Draft(jon) }.execute(db)
+    try Person.insert { Person.Draft(wendy) }.execute(db)
+  }
+
+  try database.write { db in
+    let disabledClaim = try PersonIdentityOperations.claim(
+      personID: jon.id, accountRecordName: "jon-account", syncEnabled: false, in: db
+    )
+    let firstClaim = try PersonIdentityOperations.claim(
+      personID: jon.id, accountRecordName: "jon-account", syncEnabled: true, in: db
+    )
+    let duplicateClaim = try PersonIdentityOperations.claim(
+      personID: wendy.id, accountRecordName: "jon-account", syncEnabled: true, in: db
+    )
+    #expect(disabledClaim == .syncDisabled)
+    #expect(firstClaim == .claimed)
+    #expect(duplicateClaim == .accountAlreadyClaimsAnotherPerson)
+  }
+  let people = try database.read { db in try Person.fetchAll(db) }
+  #expect(people.first(where: { $0.id == jon.id })?.iCloudUserRecordName == "jon-account")
+  #expect(people.first(where: { $0.id == wendy.id })?.iCloudUserRecordName == nil)
 }
 
 @Test
