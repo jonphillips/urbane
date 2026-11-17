@@ -26,11 +26,29 @@ no date misleads.
    becomes the price history M2's listing tracking extends: a listing in M2 is observations with a
    lifecycle on top.
 
-## Open
+## The neighborhood file (settled 2026-11-16, from PR #15)
 
-- Confirm the Data Dashboard still offers a 2BR breakdown by neighborhood, and how its neighborhood
-  names map to ours. Jon checks this on the first download; if the breakdown is missing, layer 1
-  becomes "all-units median" with a label saying so.
+The Data Dashboard does break 2BR rents out by neighborhood, so layer 1 stays the 2BR median and the
+all-units fallback isn't needed. The download is
+`https://cdn-charts.streeteasy.com/rentals/TwoBd/medianAskingRent_TwoBd.zip`, a zip with one file,
+`medianAskingRent_TwoBd.csv`. It's a wide table with one row per area and one column per month:
+
+```
+areaName,Borough,areaType,2010-01,2010-02,…,2026-10
+West Village,Manhattan,neighborhood,…,7295.0
+```
+
+- The header is exactly `areaName,Borough,areaType`, then consecutive `YYYY-MM` columns. Any other
+  column is an unknown header, and the import fails.
+- `areaType` is `borough`, `city` or `neighborhood`. Only `neighborhood` rows are used, and an
+  `areaType` outside those three fails the import.
+- Rents look like `3800.0`. An empty cell means StreetEasy has no figure for that month: it's
+  skipped, never stored as 0. Any other value that isn't a positive number fails the import.
+- We keep the trailing 12 months, which is what the sparkline shows.
+- The import starts from **our** neighborhoods and finds each one's StreetEasy area by name, through a
+  small alias table in code, because StreetEasy's names aren't always ours (our Hell's Kitchen is its
+  `Midtown West`). StreetEasy areas we don't track are ignored. Our neighborhoods with no match are
+  named in the import's result, so we know which aliases to add.
 
 ## Consequences
 
