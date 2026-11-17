@@ -18,6 +18,10 @@ This file only adds what is particular to Urbane.
   it already uploaded, and Production stays partly empty, as happened to Yes Chef. **Exercise
   Development only on the Simulator, or on a device without the real library, and keep sync's opt-in
   off on Jon's iPad until step 9.**
+- **There's no backup yet.** Backup and restore arrive with S8b (step 3), from `CloudSyncKit`. Until
+  then, Jon's library exists only on his iPad. Backups are stamped by build type: one taken in an Xcode
+  (Development) build won't restore into a TestFlight build. That's why step 8 takes the backup on the
+  first TestFlight build, not before.
 - **Urbane isn't on TestFlight yet.** Wendy can only get it through TestFlight, and TestFlight builds use
   Production. So Production is a prerequisite of the device gate, not an afterthought.
 
@@ -36,7 +40,7 @@ This file only adds what is particular to Urbane.
 
 3. The code in the S8b brief: entitlements, `CKSharingSupported`, the remote-notification background mode,
    the patched SQLiteData override, `CloudSyncKit` with `startImmediately: false` behind a persisted opt-in
-   (default **off**), sync health, backup/restore, share create and accept, the iCloud identity binding,
+   (default **off**), sync health with a per-table row count, backup/restore, share create and accept, the iCloud identity binding,
    and `testflight.conf` (mirror Galavant's: `SCHEMA_GATE=1`, `EXPECTED_SCHEMA_FIELDS`).
 4. **Schema with `cktool`, into Development.** Every synced table is new to CloudKit, so the file adds
    all of them: `searches`, `people`, `neighborhoods`, `neighborhoodRents`, `buildings`,
@@ -53,16 +57,16 @@ This file only adds what is particular to Urbane.
    be removed.
 7. **First TestFlight build.** `testflight` with the schema gate. The build installs over Jon's current
    app on his iPad and keeps the library, with sync still off.
-8. **Back up before syncing.** In Urbane's Settings, take a backup to Files and note each table's row count,
-   which the backup reports. This is the copy to restore from if anything goes wrong.
+8. **Back up before syncing.** In Urbane's Settings, take a backup to Files, then screenshot the sync
+   detail's row counts for every table. This is the copy to restore from if anything goes wrong.
 9. **Turn sync on, on Jon's iPad only.** Keep Urbane in the foreground until sync health reads up to date.
    The library is small (hundreds of rows, not Yes Chef's 50,000), so expect minutes.
 10. **Share.** Settings → Share with Wendy (owner only). Send her the invitation.
 11. **Wendy installs fresh from TestFlight and accepts.** Her first launch creates a throwaway local root;
     accepting the share replaces it (S8b brief, "One root per device"). Let her iPad download until
     sync health reads up to date, then check Settings shows one Jon and one Wendy.
-12. **Verify with counts, never with the status.** Take a backup on each iPad and compare row counts table
-    by table. If a table differs, match rows by ID (persistence-and-sync § Moving a populated library to
+12. **Verify with counts, never with the status.** Compare the sync detail's per-table row counts on the
+    two iPads, and against step 8's screenshot. If a table differs, match rows by ID (persistence-and-sync § Moving a populated library to
     Production). Then run the held sharing pass in `device-passes.md`: each of us reacts to a building,
     and the other sees it within a minute.
 

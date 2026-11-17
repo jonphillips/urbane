@@ -235,7 +235,9 @@ and who does each step, is [PROD-CUTOVER.md](../PROD-CUTOVER.md). Read it before
 
 - iCloud and CloudKit entitlements, `CKSharingSupported`, and the remote-notification background mode.
 - A `SyncEngine` through `CloudSyncKit`, started with `startImmediately: false` behind a persisted
-  opt-in and an account check. Sync health and backup/restore in Settings.
+  opt-in and an account check. Sync health and backup/restore in Settings. The sync detail also lists
+  **a row count for every synced table**. `CloudSyncKit`'s backup records only one table's count
+  (`libraryCountTableName`), and the cutover compares every table across both iPads.
 - **The patched SQLiteData.** Jon's library has never synced, so its first upload goes into an empty
   Production zone. Unpatched SQLiteData deletes single-parent children when they reach the server
   before their parents (jon-platform `SEAM-LEDGER.md`, "Patched SQLiteData"; Yes Chef lost 669 rows
@@ -263,7 +265,7 @@ and who does each step, is [PROD-CUTOVER.md](../PROD-CUTOVER.md). Read it before
 `EXPECTED_SCHEMA_FIELDS`; and the PR lists the PROD-CUTOVER steps that are Jon's. Device gate (the
 held sharing pass): after the cutover, Wendy accepts the share on her own iPad from TestFlight; each
 of us sees the other's reaction within a minute; and every table's row count matches between
-Jon's and Wendy's backups.
+Jon's and Wendy's iPads, as the sync detail shows them.
 
 ### S9 — "A Tuesday here"
 
