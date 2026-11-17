@@ -326,6 +326,11 @@ the building has at least one Tuesday stop.
 
 ## Dispatches
 
+Each dispatch that hasn't started carries its **Briefs** line. When a slice's closeout advances
+`NEXT_UP.md`, copy the next dispatch's Briefs line from here word for word. Don't rebuild it from
+the slice heading. When the architect puts a new slice ahead of a queued one, the queued one's line
+stays here, so it survives the swap.
+
 - **Dispatch 1:** S1, alone, because it could change the plan.
 - **Dispatch 2:** S2 + S3 (getting buildings in; they share the place-search code).
 - **Dispatch 3:** S4 + S5 (postcard and chapters; they share the snapshot and vignette code).
@@ -339,7 +344,9 @@ the building has at least one Tuesday stop.
   2026-11-17), ahead of sharing.
 - **Dispatch 6b:** S8b, alone (sync, sharing, Production). Split from the old S8 on 2026-11-17 so the opinion
   work could start while the cutover plan is reviewed.
+  **Briefs:** docs/milestones/M1-browse.md §S8b, docs/PROD-CUTOVER.md, docs/decisions/0005-shareable-graph.md
 - **Dispatch 7:** S9.
+  **Briefs:** docs/milestones/M1-browse.md §S9, docs/decisions/0004-words-are-ours.md
 
 ## Ledger
 
