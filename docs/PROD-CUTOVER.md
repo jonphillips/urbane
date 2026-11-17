@@ -58,8 +58,9 @@ This file only adds what is particular to Urbane.
 9. **Turn sync on, on Jon's iPad only.** Keep Urbane in the foreground until sync health reads up to date.
    The library is small (hundreds of rows, not Yes Chef's 50,000), so expect minutes.
 10. **Share.** Settings → Share with Wendy (owner only). Send her the invitation.
-11. **Wendy installs fresh from TestFlight and accepts.** Let her iPad download until sync health reads up
-    to date.
+11. **Wendy installs fresh from TestFlight and accepts.** Her first launch creates a throwaway local root;
+    accepting the share replaces it (S8b brief, "One root per device"). Let her iPad download until
+    sync health reads up to date, then check Settings shows one Jon and one Wendy.
 12. **Verify with counts, never with the status.** Take a backup on each iPad and compare row counts table
     by table. If a table differs, match rows by ID (persistence-and-sync § Moving a populated library to
     Production). Then run the held sharing pass in `device-passes.md`: each of us reacts to a building,

@@ -245,6 +245,19 @@ and who does each step, is [PROD-CUTOVER.md](../PROD-CUTOVER.md). Read it before
   ADR-0051; read its open-question answers first.
 - `testflight.conf` with `SCHEMA_GATE=1` and `EXPECTED_SCHEMA_FIELDS`, and the full CloudKit schema
   made with `cktool` (§ Adding a synced table or column).
+- **One root per device, after accepting.** Today `bootstrap` creates a `searches` row on first launch,
+  and S8a seeds Jon and Wendy under it with random IDs. On Wendy's fresh install, that gives her a
+  second root, with its own Jon and Wendy, before she accepts the share. After accepting, the app
+  would hold two roots and four people, and `searches.first` would pick either. Fix it like this:
+  - **The active search** is the shared root when one exists, otherwise the local one. Every
+    `searches.first` read goes through one `activeSearch` accessor.
+  - **On accepting a share,** delete the local, never-shared root if it holds no neighborhoods or
+    buildings. The cascade removes its seeded people. If it does hold data, stop and tell the user,
+    rather than merging two libraries.
+  - **Seed people only under a root this device owns.** A participant never seeds; it uses the
+    owner's people. "This is me" then binds to one of those rows (Galavant ADR-0051).
+  - Test the root choice and the empty-root cleanup in `UrbaneLibrary`. Acceptance itself is the
+    device gate.
 
 **Done when:** the gate passes; the schema is imported to Development with `cktool` and matches
 `EXPECTED_SCHEMA_FIELDS`; and the PR lists the PROD-CUTOVER steps that are Jon's. Device gate (the
