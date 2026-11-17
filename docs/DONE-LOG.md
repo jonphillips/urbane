@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — M1 S7c — Rent tab guidance and transit directions (`m1/s7c-transit-directions`)
+
+- **Result:** Added 2 beds tab guidance when rental capture finds units but no two bedroom candidates, and made commute rows open transit directions in Maps.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, 63 UrbaneLibrary tests, package resolution, and iOS build-for-testing.
+- **Owed:** M1 S7c's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-17 — M1 · S6, S7 and S7b device pass
 
 - **Result:** Passed on Jon's iPad ("overall things look good"). Covered: the S6 checks (transit

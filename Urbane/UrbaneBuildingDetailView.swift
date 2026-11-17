@@ -211,10 +211,7 @@ struct BuildingDetailSheet: View {
             let extraction = try await model.extractRentCandidates(from: html, sourceURL: sourceURL)
             guard !extraction.candidates.isEmpty else {
               rentPageTextToCopy = StreetEasyPageReducer.reduce(html)
-              let message = extraction.unitsFound == 0
-                ? "No rental units found on this page."
-                : "Found \(extraction.unitsFound) units on this page, none with 2 bedrooms."
-              return .notFound(message: message)
+              return .notFound(message: extraction.noCandidatesMessage)
             }
             pendingRentReview = RentReviewContext(
               building: currentBuilding, candidates: extraction.candidates, sourceURL: sourceURL

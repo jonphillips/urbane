@@ -10,6 +10,7 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
 ## Owed now
 
 *(nothing yet)*
+- **M1 S7c:** On iPad, verify the Studio tab on 420 Kent shows the 2 beds guidance and a commute row opens transit directions from the building to its destination. ([M1](milestones/M1-browse.md))
 
 ## Held
 

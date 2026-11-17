@@ -247,6 +247,12 @@ private actor ModelRequestCapture {
     ))
   }
 
+  @Test func noTwoBedroomMessageSuggestsSelectingTheTwoBedsTab() {
+    let extraction = RentListingExtraction(unitsFound: 9, candidates: [])
+    #expect(extraction.noCandidatesMessage == "Found 9 units on this page, none with 2 bedrooms. If the page has a 2 beds tab, tap it, then Extract rents again.")
+    #expect(RentListingExtraction(unitsFound: 0, candidates: []).noCandidatesMessage == "No rental units found on this page.")
+  }
+
   @Test func undecodableOutputIsAnErrorAndValidOutputFiltersAndNormalizes() throws {
     #expect(throws: RentListingExtractor.ExtractionError.invalidResponse) {
       try RentListingExtractor.parse("not JSON")

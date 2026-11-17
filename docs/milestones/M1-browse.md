@@ -246,6 +246,6 @@ the building has at least one Tuesday stop.
 - [x] S6 — Rent numbers and commutes
 - [x] S7 — The subway on the map
 - [x] S7b — Fixes from the S6 and S7 device pass
-- [ ] S7c — Two touches from the S7b pass
+- [x] S7c — Two touches from the S7b pass
 - [ ] S8 — Two opinions, sharing on
 - [ ] S9 — "A Tuesday here"
