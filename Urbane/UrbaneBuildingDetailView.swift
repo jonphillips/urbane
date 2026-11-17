@@ -27,6 +27,7 @@ struct BuildingDetailSheet: View {
   @State private var pendingRentReview: RentReviewContext?
   @State private var rentReview: RentReviewContext?
   @State private var rentCaptureError: String?
+  @State private var rentPageTextToCopy: String?
   @State private var editingVignette: BuildingVignette?
   @State private var addingVignette = false
   @State private var fixingLocation = false
@@ -82,9 +83,11 @@ struct BuildingDetailSheet: View {
           onCapture: {
             pendingRentReview = nil
             rentCaptureError = nil
+            rentPageTextToCopy = nil
             showingRentBrowser = true
           },
-          captureError: rentCaptureError
+          captureError: rentCaptureError,
+          pageTextToCopy: rentPageTextToCopy
         )
         BuildingCommuteSection(building: currentBuilding, model: model)
         BuildingSubwaySection(
@@ -205,16 +208,22 @@ struct BuildingDetailSheet: View {
         WebExtractorBrowser(startURL: url, title: "Capture rents", confirmLabel: "Extract rents") { html, pageURL in
           let sourceURL = pageURL ?? url
           do {
-            let candidates = try await model.extractRentCandidates(from: html, sourceURL: sourceURL)
-            guard !candidates.isEmpty else {
-              return .notFound(message: "No 2 bedroom rental candidates were found. Try the listing page and confirm it has loaded.")
+            let extraction = try await model.extractRentCandidates(from: html, sourceURL: sourceURL)
+            guard !extraction.candidates.isEmpty else {
+              rentPageTextToCopy = StreetEasyPageReducer.reduce(html)
+              let message = extraction.unitsFound == 0
+                ? "No rental units found on this page."
+                : "Found \(extraction.unitsFound) units on this page, none with 2 bedrooms."
+              return .notFound(message: message)
             }
             pendingRentReview = RentReviewContext(
-              building: currentBuilding, candidates: candidates, sourceURL: sourceURL
+              building: currentBuilding, candidates: extraction.candidates, sourceURL: sourceURL
             )
+            rentPageTextToCopy = nil
             rentCaptureError = nil
             return .extracted
           } catch {
+            rentPageTextToCopy = StreetEasyPageReducer.reduce(html)
             rentCaptureError = error.localizedDescription
             return .notFound(message: "Rent extraction failed: \(error.localizedDescription)")
           }

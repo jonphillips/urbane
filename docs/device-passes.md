@@ -14,6 +14,7 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
   from StreetEasy; on 420 Kent, the building sheet stays open through capture, review and save. Rent
   capture itself failed on 2026-11-17 and is re-checked under S7b. ([M1](milestones/M1-browse.md))
 - **M1 S7:** On the iPad, confirm route markers are easy to pick out on the 3D map around Union Square and Williamsburg, and confirm a real building sheet lists the stations Jon would use. ([M1](milestones/M1-browse.md))
+- **M1 S7b:** On iPad, capture from StreetEasy on 420 Kent must offer #560, #802 and #1009 only; subway markers must show at the Midtown/LIC screenshot altitude and be about 1.5x larger when fully zoomed in. ([M1](milestones/M1-browse.md))
 
 ## Held
 

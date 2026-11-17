@@ -220,6 +220,6 @@ the building has at least one Tuesday stop.
 - [x] S5 — Neighborhood chapters
 - [x] S6 — Rent numbers and commutes
 - [x] S7 — The subway on the map
-- [ ] S7b — Fixes from the S6 and S7 device pass
+- [x] S7b — Fixes from the S6 and S7 device pass
 - [ ] S8 — Two opinions, sharing on
 - [ ] S9 — "A Tuesday here"

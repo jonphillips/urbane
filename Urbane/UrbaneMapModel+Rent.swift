@@ -66,7 +66,7 @@ import UrbaneSchema
     }
   }
 
-  func extractRentCandidates(from html: String, sourceURL: URL) async throws -> [RentListingCandidate] {
+  func extractRentCandidates(from html: String, sourceURL: URL) async throws -> RentListingExtraction {
     try await RentListingExtractor.extract(from: html, sourceURL: sourceURL, using: modelClient)
   }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UrbaneCore
 import UrbaneSchema
 
@@ -7,12 +8,18 @@ struct BuildingRentSection: View {
   let model: UrbaneMapModel
   let onCapture: () -> Void
   let captureError: String?
+  let pageTextToCopy: String?
 
   var body: some View {
     Section("Rent band") {
       rentBand
       Button("Capture from StreetEasy", systemImage: "magnifyingglass", action: onCapture)
         .disabled(!hasStreetEasyLink)
+      if let pageTextToCopy {
+        Button("Copy page text", systemImage: "doc.on.doc") {
+          UIPasteboard.general.string = pageTextToCopy
+        }
+      }
       if !hasStreetEasyLink {
         Text("Add a StreetEasy link in Edit links to capture rents.")
           .font(.footnote).foregroundStyle(.secondary)

@@ -200,16 +200,38 @@ private actor ModelRequestCapture {
     }
   }
 
-  @Test func extractorSendsReducedListingTextToOnDeviceModel() async throws {
+  @Test func extractorUsesGuidedSchemaAndSendsReducedListingTextToOnDeviceModel() async throws {
     let html = "<html><head><script>private menu</script></head><main><p>978 2nd Avenue #1F</p><p>$4,395 for rent · 2 beds</p><section><h2>Similar homes</h2>$4,000 for rent</section></main></html>"
+    let schema = RentListingExtractor.responseSchema
+    if case let .object(fields) = schema {
+      #expect(fields["type"] == .string("object"))
+      #expect(fields["required"] == .array([.string("listings")]))
+      if case let .object(properties)? = fields["properties"],
+         case let .object(listings)? = properties["listings"],
+         case let .object(item)? = listings["items"],
+         case let .object(itemProperties)? = item["properties"] {
+        #expect(itemProperties["bedrooms"] != nil)
+        #expect(itemProperties["rent"] != nil)
+        #expect(itemProperties["unit"] != nil)
+        #expect(item["required"] == .array([.string("bedrooms"), .string("rent"), .string("unit")]))
+      } else {
+        Issue.record("The rental response schema must describe required listing fields")
+      }
+    } else {
+      Issue.record("The rental response schema must be an object")
+    }
+    #expect(RentListingExtractor.instructions.contains("List every rental unit"))
+    #expect(!RentListingExtractor.instructions.contains("4395"))
+    #expect(!RentListingExtractor.instructions.contains("1F"))
     let extraction = try await withDependencies {
       $0.modelClient = StubModelClient { request in
         #expect(request.tier == .onDevice)
+        #expect(request.responseFormat == .jsonSchema(name: "street_easy_rental_units", schema: schema))
         let prompt = request.messages.last?.text ?? ""
         #expect(prompt.contains("$4,395 for rent"))
         #expect(!prompt.contains("private menu"))
         #expect(!prompt.contains("$4,000 for rent"))
-        return ModelResponse(text: #"{"listings":[{"rent":4395,"unit":"1F","squareFeet":null}]}"#)
+        return ModelResponse(text: ##"{"listings":[{"bedrooms":2,"rent":4395,"unit":"#1F"},{"bedrooms":1,"rent":3300,"unit":"2A"},{"bedrooms":2,"rent":0,"unit":"3B"}]}"##)
       }
     } operation: {
       @Dependency(\.modelClient) var modelClient
@@ -219,14 +241,32 @@ private actor ModelRequestCapture {
         using: modelClient
       )
     }
-    #expect(extraction == [RentListingCandidate(rent: 4_395, unit: "1F")])
+    #expect(extraction == RentListingExtraction(
+      unitsFound: 3,
+      candidates: [RentListingCandidate(rent: 4_395, unit: "1F")]
+    ))
   }
 
-  @Test func malformedOrUnqualifiedModelOutputIsDiscarded() {
-    #expect(RentListingExtractor.parse("not JSON").isEmpty)
-    #expect(RentListingExtractor.parse(#"{"listings":[{"rent":0},{"rent":4395,"unit":"1F"}]}"#) == [
-      RentListingCandidate(rent: 4_395, unit: "1F")
+  @Test func undecodableOutputIsAnErrorAndValidOutputFiltersAndNormalizes() throws {
+    #expect(throws: RentListingExtractor.ExtractionError.invalidResponse) {
+      try RentListingExtractor.parse("not JSON")
+    }
+    let extraction = try RentListingExtractor.parse(##"{"listings":[{"bedrooms":0,"rent":2000,"unit":"studio"},{"bedrooms":1,"rent":3300,"unit":"2A"},{"bedrooms":2,"rent":0,"unit":"3B"},{"bedrooms":2,"rent":7482,"unit":"  # 560 - 420 Kent Avenue  "},{"bedrooms":2,"rent":7105,"unit":"#1009 - 420 Kent Avenue"}]}"##)
+    #expect(extraction.unitsFound == 5)
+    #expect(extraction.candidates == [
+      RentListingCandidate(rent: 7_482, unit: "560"),
+      RentListingCandidate(rent: 7_105, unit: "1009"),
     ])
+  }
+
+  @Test func markerScaleClampsAndInterpolatesAcrossCameraDistances() {
+    #expect(SubwayMarkerScale.scale(cameraDistance: 600) == 1.5)
+    #expect(SubwayMarkerScale.scale(cameraDistance: 0) == 1.5)
+    #expect(SubwayMarkerScale.scale(cameraDistance: 4_440) == 1.0)
+    #expect(SubwayMarkerScale.scale(cameraDistance: 8_000) == 1.0)
+    #expect(SubwayMarkerScale.scale(cameraDistance: 2_000) > 1.0)
+    #expect(SubwayMarkerScale.scale(cameraDistance: 2_000) < 1.5)
+    #expect(SubwayMarkerScale.maximumCameraDistance == 10_000)
   }
 
   private func loadFixture(_ name: String) throws -> (String, URL) {
