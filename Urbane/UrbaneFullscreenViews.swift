@@ -29,7 +29,8 @@ struct FullScreenPostcardMap: View {
           )) {
             SubwayStationMarker(
               station: station,
-              showsName: stationCameraDistance <= SubwayStationVisibility.maximumNameCameraDistance
+              showsName: stationCameraDistance <= SubwayStationVisibility.maximumNameCameraDistance,
+              scale: SubwayMarkerScale.scale(cameraDistance: stationCameraDistance)
             )
           }
           .annotationTitles(.hidden)

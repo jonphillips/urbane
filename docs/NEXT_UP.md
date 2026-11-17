@@ -1,6 +1,6 @@
-# Next Up — Fixes from the S6 and S7 device pass
+# Next Up — Two opinions, sharing on
 
-**Slices:** M1 · S7b
-**Briefs:** docs/milestones/M1-browse.md §S7b, docs/decisions/0003-rent-numbers.md, docs/decisions/0008-subway-stations.md
+**Slices:** M1 · S8
+**Briefs:** docs/milestones/M1-browse.md §S8
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)

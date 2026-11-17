@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — M1 S7b — Fixes from the S6 and S7 device pass (`m1/s7b-rent-and-subway-fixes`)
+
+- **Result:** Rent capture now uses guided structured output, filters and normalizes two bedroom units, reports what the model found, and exposes reduced page text for copying when no candidates match. Subway station markers now scale with camera distance and remain visible through 10 km.
+- **Verification:** SwiftLint passed; 62 UrbaneLibrary tests passed; Xcode build-for-testing succeeded; check-handoff --strict passed.
+- **Owed:** M1 S7b's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-17 — M1 · S7 — The subway on the map (`m1/s7-subway-map`)
 
 - **Result:** Bundled a dated MTA station snapshot, drew route markers on both maps, and added the nearest stations to building sheets.

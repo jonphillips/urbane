@@ -4,9 +4,7 @@ import UrbaneCore
 import UrbaneSchema
 
 enum SubwayStationVisibility {
-  // 0.02° is the default neighborhood span (about 2.22 km north to south); show
-  // stations within twice that camera distance to include a neighborhood's edges.
-  static let maximumCameraDistance = 0.02 * 111_000 * 2
+  static let maximumCameraDistance = SubwayMarkerScale.maximumCameraDistance
   // Initial label scale from the S7 review; the iPad gate will tune it for legibility.
   static let maximumNameCameraDistance = 1_500.0
 }
@@ -21,17 +19,18 @@ extension MKCoordinateRegion {
 struct SubwayStationMarker: View {
   let station: SubwayStation
   let showsName: Bool
+  var scale = 1.0
 
   var body: some View {
     HStack(spacing: 5) {
-      SubwayRouteBullets(routes: station.routes)
+      SubwayRouteBullets(routes: station.routes, diameter: 21 * scale, scale: scale)
       if showsName {
         Text(station.name)
           .font(.caption.weight(.semibold))
           .fixedSize()
       }
     }
-    .padding(5)
+    .padding(5 * scale)
     .background(.regularMaterial, in: Capsule())
     .overlay(Capsule().stroke(.primary.opacity(0.28), lineWidth: 1))
     .fixedSize()
@@ -43,13 +42,14 @@ struct SubwayStationMarker: View {
 struct SubwayRouteBullets: View {
   let routes: [String]
   var diameter: CGFloat = 21
+  var scale = 1.0
 
   var body: some View {
     HStack(spacing: 2) {
       ForEach(routes, id: \.self) { route in
         let style = style(for: route)
         Text(route)
-          .font(.system(size: route == "SIR" ? 7 : 9, weight: .bold, design: .rounded))
+          .font(.system(size: (route == "SIR" ? 7 : 9) * scale, weight: .bold, design: .rounded))
           .foregroundStyle(color(for: style.textHex))
           .frame(width: diameter, height: diameter)
           .background(color(for: style.fillHex), in: Circle())

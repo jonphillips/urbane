@@ -35,6 +35,21 @@ public struct SubwayLineStyle: Equatable, Sendable {
   public let textHex: UInt32
 }
 
+public enum SubwayMarkerScale {
+  public static let maximumCameraDistance = 10_000.0
+  private static let closeCameraDistance = 600.0
+  private static let fullSizeCameraDistance = 4_440.0
+  private static let closeScale = 1.5
+  private static let distantScale = 1.0
+
+  public static func scale(cameraDistance: Double) -> Double {
+    if cameraDistance <= closeCameraDistance { return closeScale }
+    if cameraDistance >= fullSizeCameraDistance { return distantScale }
+    let progress = (cameraDistance - closeCameraDistance) / (fullSizeCameraDistance - closeCameraDistance)
+    return closeScale + (distantScale - closeScale) * progress
+  }
+}
+
 public enum SubwayStations {
   public static let maximumWalkingDistanceMeters = 800.0
   public static let walkingMetersPerMinute = 80.0
