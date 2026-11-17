@@ -15,10 +15,8 @@ struct MapHomeView: View {
   @State private var selectedBuilding: Building?
   @State private var selectedNeighborhood: Neighborhood?
   @State private var camera: MapCameraPosition = .region(Self.initialRegion)
-  @State private var stationRows: [SubwayStation] = []
   @State private var stationRegion: MKCoordinateRegion?
   @State private var stationCameraDistance = Double.infinity
-  @State private var stationLoadError: String?
 
   @FetchAll(Neighborhood.order(by: \.name)) private var neighborhoods
   @FetchAll(Building.order(by: \.name)) private var buildings
@@ -58,7 +56,10 @@ struct MapHomeView: View {
             latitude: station.latitude,
             longitude: station.longitude
           )) {
-            SubwayStationMarker(station: station, showsName: true)
+            SubwayStationMarker(
+              station: station,
+              showsName: stationCameraDistance <= SubwayStationVisibility.maximumNameCameraDistance
+            )
           }
           .annotationTitles(.hidden)
         }
@@ -127,8 +128,6 @@ struct MapHomeView: View {
       }
       .task {
         model.bootstrap()
-        do { stationRows = try SubwayStations.load() }
-        catch { stationLoadError = error.localizedDescription }
       }
     }
   }
@@ -144,8 +143,14 @@ struct MapHomeView: View {
 
   private var visibleStations: [SubwayStation] {
     guard stationCameraDistance <= SubwayStationVisibility.maximumCameraDistance,
-          let stationRegion else { return [] }
-    return stationRows.filter { stationRegion.contains($0) }
+          let stationRegion,
+          case let .success(stations) = SubwayStations.bundled else { return [] }
+    return stations.filter { stationRegion.contains($0) }
+  }
+
+  private var stationLoadError: String? {
+    guard case let .failure(error) = SubwayStations.bundled else { return nil }
+    return error.localizedDescription
   }
 
   private static let initialRegion = MKCoordinateRegion(

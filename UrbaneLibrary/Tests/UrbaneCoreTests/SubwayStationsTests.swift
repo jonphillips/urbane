@@ -35,6 +35,14 @@ import UrbaneSchema
     #expect(nearest.first?.approximateWalkMinutes == 3)
     #expect(SubwayStations.nearest(to: origin, stations: stations, limit: 1).map(\.station.id) == ["first"])
     #expect(SubwayStations.nearest(to: origin, stations: stations, limit: 0).isEmpty)
+
+    let cutoffStations = [
+      station("inside", latitudeOffset: latitudeOffset(forMeters: SubwayStations.maximumWalkingDistanceMeters - 1)),
+      station("outside", latitudeOffset: latitudeOffset(forMeters: SubwayStations.maximumWalkingDistanceMeters + 1)),
+    ]
+    let withinCutoff = SubwayStations.nearest(to: origin, stations: cutoffStations)
+    #expect(withinCutoff.map(\.station.id) == ["inside"])
+    #expect(withinCutoff.first?.distanceMeters ?? .infinity < SubwayStations.maximumWalkingDistanceMeters)
   }
 
   private func station(_ id: String, latitudeOffset: Double) -> SubwayStation {
@@ -45,5 +53,10 @@ import UrbaneSchema
       latitude: 40 + latitudeOffset,
       longitude: -73
     )
+  }
+
+  private func latitudeOffset(forMeters meters: Double) -> Double {
+    // Convert a north–south great-circle distance using the same mean Earth radius as the loader.
+    meters / 6_371_000 * 180 / .pi
   }
 }

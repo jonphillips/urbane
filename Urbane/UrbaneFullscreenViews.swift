@@ -8,10 +8,8 @@ struct FullScreenPostcardMap: View {
   let building: Building
   @Environment(\.dismiss) private var dismiss
   @State private var camera: MapCameraPosition
-  @State private var stationRows: [SubwayStation] = []
   @State private var stationRegion: MKCoordinateRegion?
   @State private var stationCameraDistance = 350.0
-  @State private var stationLoadError: String?
 
   init(building: Building) {
     self.building = building
@@ -29,7 +27,10 @@ struct FullScreenPostcardMap: View {
             latitude: station.latitude,
             longitude: station.longitude
           )) {
-            SubwayStationMarker(station: station, showsName: true)
+            SubwayStationMarker(
+              station: station,
+              showsName: stationCameraDistance <= SubwayStationVisibility.maximumNameCameraDistance
+            )
           }
           .annotationTitles(.hidden)
         }
@@ -52,17 +53,19 @@ struct FullScreenPostcardMap: View {
         .toolbar {
           ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         }
-        .task {
-          do { stationRows = try SubwayStations.load() }
-          catch { stationLoadError = error.localizedDescription }
-        }
     }
   }
 
   private var visibleStations: [SubwayStation] {
     guard stationCameraDistance <= SubwayStationVisibility.maximumCameraDistance,
-          let stationRegion else { return [] }
-    return stationRows.filter { stationRegion.contains($0) }
+          let stationRegion,
+          case let .success(stations) = SubwayStations.bundled else { return [] }
+    return stations.filter { stationRegion.contains($0) }
+  }
+
+  private var stationLoadError: String? {
+    guard case let .failure(error) = SubwayStations.bundled else { return nil }
+    return error.localizedDescription
   }
 }
 

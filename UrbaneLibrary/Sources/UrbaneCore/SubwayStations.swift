@@ -38,6 +38,7 @@ public struct SubwayLineStyle: Equatable, Sendable {
 public enum SubwayStations {
   public static let maximumWalkingDistanceMeters = 800.0
   public static let walkingMetersPerMinute = 80.0
+  public static let bundled: Result<[SubwayStation], Error> = Result { try load() }
 
   // This order is the MTA route order used by the app's palette and markers.
   public static let routeOrder = [
@@ -81,8 +82,17 @@ public enum SubwayStations {
   }
 
   public static func group(_ rows: [StationRow]) throws -> [SubwayStation] {
-    let grouped = Dictionary(grouping: rows, by: \.complexID)
-    return try grouped.keys.sorted(by: { firstIndex(of: $0, in: rows) < firstIndex(of: $1, in: rows) }).map { complexID in
+    var grouped: [String: [StationRow]] = [:]
+    var complexOrder: [String] = []
+    for row in rows {
+      if grouped[row.complexID] == nil {
+        grouped[row.complexID] = []
+        complexOrder.append(row.complexID)
+      }
+      grouped[row.complexID, default: []].append(row)
+    }
+
+    return try complexOrder.map { complexID in
       guard let members = grouped[complexID], !members.isEmpty else {
         throw SnapshotError.emptyComplex(complexID)
       }
@@ -138,10 +148,6 @@ public enum SubwayStations {
     return 2 * earthRadiusMeters * atan2(sqrt(haversine), sqrt(1 - haversine))
   }
 
-  private static func firstIndex(of complexID: String, in rows: [StationRow]) -> Int {
-    rows.firstIndex { $0.complexID == complexID } ?? rows.endIndex
-  }
-
   private struct StationSnapshot: Decodable {
     let sourceURL: URL
     let fetchedAt: String
@@ -172,9 +178,20 @@ public enum SubwayStations {
     }
   }
 
-  private enum SnapshotError: Error {
+  private enum SnapshotError: LocalizedError {
     case resourceMissing
     case emptyComplex(String)
     case unknownRoutes([String])
+
+    var errorDescription: String? {
+      switch self {
+      case .resourceMissing:
+        "The bundled MTA station snapshot is missing."
+      case let .emptyComplex(complexID):
+        "MTA station complex \(complexID) has no station rows."
+      case let .unknownRoutes(routes):
+        "The MTA station snapshot includes unknown subway routes: \(routes.joined(separator: ", "))."
+      }
+    }
   }
 }

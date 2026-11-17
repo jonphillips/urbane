@@ -7,6 +7,8 @@ enum SubwayStationVisibility {
   // 0.02° is the default neighborhood span (about 2.22 km north to south); show
   // stations within twice that camera distance to include a neighborhood's edges.
   static let maximumCameraDistance = 0.02 * 111_000 * 2
+  // Initial label scale from the S7 review; the iPad gate will tune it for legibility.
+  static let maximumNameCameraDistance = 1_500.0
 }
 
 extension MKCoordinateRegion {
@@ -74,12 +76,11 @@ struct SubwayRouteBullets: View {
 
 struct BuildingSubwaySection: View {
   let building: Building
-  let stations: [SubwayStation]
-  let isLoading: Bool
-  let error: String?
+  let result: Result<[SubwayStation], Error>
 
   private var nearbyStations: [NearbySubwayStation] {
-    SubwayStations.nearest(
+    guard case let .success(stations) = result else { return [] }
+    return SubwayStations.nearest(
       to: GeoCoordinate(latitude: building.latitude, longitude: building.longitude),
       stations: stations
     )
@@ -87,11 +88,9 @@ struct BuildingSubwaySection: View {
 
   var body: some View {
     Section("Subway") {
-      if let error {
-        Text("Subway stations couldn't be loaded: \(error)")
+      if case let .failure(error) = result {
+        Text("Subway stations couldn't be loaded: \(error.localizedDescription)")
           .foregroundStyle(.secondary)
-      } else if isLoading {
-        Text("Loading stations…").foregroundStyle(.secondary)
       } else if nearbyStations.isEmpty {
         Text("No subway within 800 m").foregroundStyle(.secondary)
       } else {
