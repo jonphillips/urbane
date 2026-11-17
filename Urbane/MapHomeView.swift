@@ -84,9 +84,9 @@ struct MapHomeView: View {
           }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
-          Button("Neighborhood", systemImage: "map") { showingNeighborhood = true }
-          Button("Building", systemImage: "plus") { showingBuilding = true }
-          Button("Import", systemImage: "doc.on.clipboard") { showingImport = true }
+          Button("Neighborhood", systemImage: "plus.viewfinder") { showingNeighborhood = true }
+          Button("Building", systemImage: "building") { showingBuilding = true }
+          Button("Import", systemImage: "sparkle.text.clipboard") { showingImport = true }
           Menu("Settings", systemImage: "gearshape") {
             Button("Import neighborhood rents", systemImage: "tablecells") { showingRentCSVImporter = true }
           }
