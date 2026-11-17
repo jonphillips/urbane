@@ -7,33 +7,60 @@ import UrbaneSchema
 @testable import UrbaneCore
 
 @Suite struct RentNumbersTests {
-  @Test func parsesNeighborhoodCSVAndQuotedNames() throws {
-    let csv = """
-      Neighborhood,Month,Median 2BR Rent
-      "Hell's Kitchen",2026-10,"$5,400"
-      "West Village",2026-10,6100
-      """
-    let rows = try NeighborhoodRentCSV.parse(Data(csv.utf8))
-    #expect(rows == [
-      NeighborhoodRentPoint(neighborhood: "Hell's Kitchen", month: "2026-10", median2BRRent: 5_400),
-      NeighborhoodRentPoint(neighborhood: "West Village", month: "2026-10", median2BRRent: 6_100),
-    ])
+  @Test func parsesRealDashboardFixtureUsingOnlyRecentNeighborhoodMonths() throws {
+    // Source: https://cdn-charts.streeteasy.com/rentals/TwoBd/medianAskingRent_TwoBd.zip
+    // Fetched 2026-11-16; rows and the complete original monthly header are preserved.
+    let fixture = try #require(Bundle.module.url(forResource: "medianAskingRent_TwoBd-2026-11-05", withExtension: "csv"))
+    let dataset = try NeighborhoodRentCSV.parse(Data(contentsOf: fixture))
+    let rows = dataset.points
+    #expect(rows.count == 24)
+    #expect(rows.allSatisfy { $0.month >= "2025-11" && $0.month <= "2026-10" })
+    #expect(rows.allSatisfy { $0.neighborhood != "Manhattan" && $0.neighborhood != "Baychester" })
+    #expect(dataset.areaNames.contains("Baychester"))
+    #expect(rows.contains(.init(neighborhood: "West Village", month: "2026-10", median2BRRent: 7_295)))
+    #expect(rows.contains(.init(neighborhood: "Midtown West", month: "2026-10", median2BRRent: 7_000)))
   }
 
   @Test func unknownCSVHeaderFailsLoudly() {
-    let csv = "Neighborhood,Month,Median 2BR Rent,Notes\nSoho,2026-10,5400,extra\n"
-    #expect(throws: NeighborhoodRentCSV.ImportError.unknownHeader("notes")) {
+    let csv = "areaName,Borough,areaType,2026-01,Notes\nSoho,Manhattan,neighborhood,5400,extra\n"
+    #expect(throws: NeighborhoodRentCSV.ImportError.unknownHeader("Notes")) {
       try NeighborhoodRentCSV.parse(Data(csv.utf8))
     }
   }
 
-  @Test func invalidCSVMonthAndRentFailLoudly() {
-    #expect(throws: NeighborhoodRentCSV.ImportError.invalidMonth(2)) {
-      try NeighborhoodRentCSV.parse(Data("Neighborhood,Month,Median 2BR Rent\nSoho,October,5400\n".utf8))
+  @Test func rejectsUnknownAreaTypesAndInvalidRents() {
+    let header = "areaName,Borough,areaType,2026-01"
+    #expect(throws: NeighborhoodRentCSV.ImportError.unknownAreaType("community")) {
+      try NeighborhoodRentCSV.parse(Data("\(header)\nSoho,Manhattan,community,5400\n".utf8))
     }
-    #expect(throws: NeighborhoodRentCSV.ImportError.invalidRent(2)) {
-      try NeighborhoodRentCSV.parse(Data("Neighborhood,Month,Median 2BR Rent\nSoho,2026-10,unknown\n".utf8))
+    #expect(throws: NeighborhoodRentCSV.ImportError.invalidRent(2, "2026-01")) {
+      try NeighborhoodRentCSV.parse(Data("\(header)\nSoho,Manhattan,neighborhood,unknown\n".utf8))
     }
+  }
+
+  @Test func stripsBomAndSkipsEmptyMonthCells() throws {
+    let csv = "\u{feff}areaName,Borough,areaType,2026-01\nBaychester,Bronx,neighborhood,\n"
+    #expect(try NeighborhoodRentCSV.parse(Data(csv.utf8)).points.isEmpty)
+  }
+
+  @Test func dashboardCityAndBoroughRowsAreIgnored() throws {
+    let csv = "areaName,Borough,areaType,2026-01\nNYC,NYC,city,9000\nManhattan,NYC,borough,7000\nSoho,Manhattan,neighborhood,5000\n"
+    let dataset = try NeighborhoodRentCSV.parse(Data(csv.utf8))
+    #expect(dataset.points == [.init(neighborhood: "Soho", month: "2026-01", median2BRRent: 5_000)])
+  }
+
+  @Test func mapsUrbaneNeighborhoodNamesAndListsMissingAliases() {
+    let rows = [NeighborhoodRentPoint(neighborhood: "Midtown West", month: "2026-10", median2BRRent: 5_500)]
+    let plan = StreetEasyNeighborhoodAliases.plan(
+      neighborhoods: ["Hell's Kitchen", "West Village"], points: rows
+    )
+    #expect(plan.matches == [NeighborhoodRentMatch(neighborhood: "Hell's Kitchen", points: rows)])
+    #expect(plan.missingNeighborhoods == ["West Village"])
+    let emptyAreaPlan = StreetEasyNeighborhoodAliases.plan(
+      neighborhoods: ["Baychester"], points: [], areaNames: ["Baychester"]
+    )
+    #expect(emptyAreaPlan.matches == [NeighborhoodRentMatch(neighborhood: "Baychester", points: [])])
+    #expect(emptyAreaPlan.missingNeighborhoods.isEmpty)
   }
 
   @Test func bandUsesOnlyTheLastSixMonths() {
@@ -50,19 +77,41 @@ import UrbaneSchema
     #expect(RentBand(observations: rows, now: now, calendar: calendar) == RentBand(low: 4_000, high: 5_500, count: 2))
   }
 
-  @Test func extractsOnlyExplicitTwoBedroomCandidatesFromSavedStreetEasyPage() async throws {
-    let fixture = try #require(Bundle.module.url(forResource: "streetEasy-978-2nd-avenue-1f", withExtension: "txt"))
-    let page = try String(contentsOf: fixture, encoding: .utf8)
+  @Test func reducesPageToVisibleListingTextWithinOnDeviceBudget() {
+    let html = """
+      <html><head><title>Hidden heading</title><script>\(String(repeating: "x", count: 20_000))</script></head>
+      <body><header>Navigation</header><div hidden>Hidden attribute</div><span aria-hidden="true">Aria hidden</span><main><section id="listing">
+      <h1>978 2nd Avenue #1F</h1><p>$4,395 for rent</p><p>2 beds</p>
+      <p>11 ft² measurements omitted</p></section><section><h2>Similar homes</h2><p>$4,000 for rent</p></section>
+      </main><footer>Footer</footer></body></html>
+      """
+    let text = StreetEasyPageReducer.reduce(html)
+    #expect(text.count <= RentListingExtractor.maximumInputCharacters)
+    #expect(text.contains("978 2nd Avenue #1F"))
+    #expect(text.contains("$4,395 for rent"))
+    #expect(!text.contains("Hidden heading"))
+    #expect(!text.contains("Navigation"))
+    #expect(!text.contains("Hidden attribute"))
+    #expect(!text.contains("Aria hidden"))
+    #expect(!text.contains("Similar homes"))
+    #expect(!text.contains("$4,000 for rent"))
+  }
+
+  @Test func extractorSendsReducedListingTextToOnDeviceModel() async throws {
+    let html = "<html><head><script>private menu</script></head><main><p>978 2nd Avenue #1F</p><p>$4,395 for rent · 2 beds</p><section><h2>Similar homes</h2>$4,000 for rent</section></main></html>"
     let extraction = try await withDependencies {
       $0.modelClient = StubModelClient { request in
         #expect(request.tier == .onDevice)
-        #expect(request.messages.last?.text.contains("$4,395 for rent") == true)
+        let prompt = request.messages.last?.text ?? ""
+        #expect(prompt.contains("$4,395 for rent"))
+        #expect(!prompt.contains("private menu"))
+        #expect(!prompt.contains("$4,000 for rent"))
         return ModelResponse(text: #"{"listings":[{"rent":4395,"unit":"1F","squareFeet":null}]}"#)
       }
     } operation: {
       @Dependency(\.modelClient) var modelClient
       return try await RentListingExtractor.extract(
-        from: page,
+        from: html,
         sourceURL: URL(string: "https://streeteasy.com/building/978-2-avenue-new_york/1f")!,
         using: modelClient
       )

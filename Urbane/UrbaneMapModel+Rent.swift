@@ -7,34 +7,41 @@ import UrbaneSchema
 @MainActor extension UrbaneMapModel {
   func importNeighborhoodRents(_ data: Data) {
     do {
-      let points = try NeighborhoodRentCSV.parse(data)
+      let dataset = try NeighborhoodRentCSV.parse(data)
+      let plan = StreetEasyNeighborhoodAliases.plan(
+        neighborhoods: neighborhoods.map(\.name), points: dataset.points, areaNames: dataset.areaNames
+      )
       try database.write { db in
-        let neighborhoods = try Neighborhood.fetchAll(db)
+        let storedNeighborhoods = try Neighborhood.fetchAll(db)
         let existing = try NeighborhoodRent.fetchAll(db)
-        for point in points {
-          guard let neighborhood = neighborhoods.first(where: {
-            Self.normalize($0.name) == Self.normalize(point.neighborhood)
-          }) else {
-            throw NeighborhoodRentCSV.ImportError.unknownNeighborhood(point.neighborhood)
-          }
-          if let row = existing.first(where: {
-            $0.neighborhoodID == neighborhood.id && $0.month == point.month
-          }) {
-            try NeighborhoodRent.find(row.id).update {
-              $0.median2BRRent = #bind(point.median2BRRent)
-              $0.sourceLabel = #bind("StreetEasy Data Dashboard")
-            }.execute(db)
-          } else {
-            try NeighborhoodRent.insert {
-              NeighborhoodRent(
-                id: uuid(), neighborhoodID: neighborhood.id, month: point.month,
-                median2BRRent: point.median2BRRent, sourceLabel: "StreetEasy Data Dashboard"
-              )
-            }.execute(db)
+        for match in plan.matches {
+          guard let neighborhood = storedNeighborhoods.first(where: {
+            Self.normalize($0.name) == Self.normalize(match.neighborhood)
+          }) else { continue }
+          for point in match.points {
+            if let row = existing.first(where: {
+              $0.neighborhoodID == neighborhood.id && $0.month == point.month
+            }) {
+              try NeighborhoodRent.find(row.id).update {
+                $0.median2BRRent = #bind(point.median2BRRent)
+                $0.sourceLabel = #bind("StreetEasy")
+              }.execute(db)
+            } else {
+              try NeighborhoodRent.insert {
+                NeighborhoodRent(
+                  id: uuid(), neighborhoodID: neighborhood.id, month: point.month,
+                  median2BRRent: point.median2BRRent, sourceLabel: "StreetEasy"
+                )
+              }.execute(db)
+            }
           }
         }
       }
-      rentImportMessage = "Imported \(points.count) neighborhood rent observations."
+      let importedCount = plan.matches.reduce(0) { $0 + $1.points.count }
+      let missing = plan.missingNeighborhoods.isEmpty
+        ? ""
+        : " No StreetEasy area for: \(plan.missingNeighborhoods.joined(separator: ", "))."
+      rentImportMessage = "Imported \(importedCount) neighborhood rent observations.\(missing)"
       rentImportError = nil
     } catch {
       rentImportMessage = nil
@@ -64,9 +71,33 @@ import UrbaneSchema
   }
 
   func refreshCommutes(for building: Building) async {
-    commuteError = nil
+    await refreshCommutes(for: building, onlyMissing: false)
+  }
+
+  func refreshMissingCommutes(for candidates: [Building]? = nil) async {
+    let savedBuildings = try? await database.read { db in try Building.fetchAll(db) }
+    var seen = Set<UUID>()
+    let buildingsToCheck = (candidates ?? savedBuildings ?? buildings).filter { seen.insert($0.id).inserted }
+    for building in buildingsToCheck {
+      let existing = Set(commutes.filter { $0.buildingID == building.id }.map(\.destination))
+      guard existing.count < CommuteDestination.allCases.count else { continue }
+      await refreshCommutes(for: building, onlyMissing: true)
+    }
+  }
+
+  func refreshCommutes(for building: Building, onlyMissing: Bool) async {
+    guard commuteBuildingsInProgress.insert(building.id).inserted else { return }
+    defer { commuteBuildingsInProgress.remove(building.id) }
+    commuteErrors[building.id] = nil
+    let storedCommutes = onlyMissing
+      ? ((try? await database.read { db in try Commute.fetchAll(db) }) ?? commutes)
+      : commutes
+    let existingDestinations = Set(storedCommutes.filter { $0.buildingID == building.id }.map(\.destination))
+    let destinations = CommuteDestination.allCases.filter {
+      !onlyMissing || !existingDestinations.contains($0)
+    }
     var failures: [String] = []
-    for destination in CommuteDestination.allCases {
+    for destination in destinations {
       do {
         let seconds = try await commuteClient.transitSeconds(
           GeoCoordinate(latitude: building.latitude, longitude: building.longitude), destination.coordinate
@@ -95,6 +126,6 @@ import UrbaneSchema
         failures.append("\(destination.displayName): \(error.localizedDescription)")
       }
     }
-    commuteError = failures.isEmpty ? nil : failures.joined(separator: "\n")
+    if !failures.isEmpty { commuteErrors[building.id] = failures.joined(separator: "\n") }
   }
 }

@@ -53,18 +53,22 @@ struct BuildingRentSection: View {
     let band = RentBand(observations: observations, now: model.currentDate)
     if observations.isEmpty {
       Text("No rental observations yet.").foregroundStyle(.secondary)
-    } else if band.high > 0 {
-      Text(band.count < 2
-        ? band.low.formatted(.currency(code: "USD").precision(.fractionLength(0)))
-        : "\(band.low.formatted(.currency(code: "USD").precision(.fractionLength(0))))–\(band.high.formatted(.currency(code: "USD").precision(.fractionLength(0))))")
-        .font(.title3.weight(.semibold))
-      let recent = observations.filter { !model.isRentObservationStale($0) }
-      if band.count < 2, let date = recent.first?.dateSeen {
-        Text("\(date.formatted(date: .abbreviated, time: .omitted)) · StreetEasy")
-          .font(.caption).foregroundStyle(.secondary)
-      } else if let oldest = recent.last?.dateSeen, let newest = recent.first?.dateSeen {
-        Text("\(oldest.formatted(date: .abbreviated, time: .omitted))–\(newest.formatted(date: .abbreviated, time: .omitted)) · StreetEasy")
-          .font(.caption).foregroundStyle(.secondary)
+    } else {
+      if band.count > 0 {
+        Text(band.count < 2
+          ? band.low.formatted(.currency(code: "USD").precision(.fractionLength(0)))
+          : "\(band.low.formatted(.currency(code: "USD").precision(.fractionLength(0))))–\(band.high.formatted(.currency(code: "USD").precision(.fractionLength(0))))")
+          .font(.title3.weight(.semibold))
+        let recent = observations.filter { !model.isRentObservationStale($0) }
+        if band.count < 2, let date = recent.first?.dateSeen {
+          Text("\(date.formatted(date: .abbreviated, time: .omitted)) · StreetEasy")
+            .font(.caption).foregroundStyle(.secondary)
+        } else if let oldest = recent.last?.dateSeen, let newest = recent.first?.dateSeen {
+          Text("\(oldest.formatted(date: .abbreviated, time: .omitted))–\(newest.formatted(date: .abbreviated, time: .omitted)) · StreetEasy")
+            .font(.caption).foregroundStyle(.secondary)
+        }
+      } else {
+        Text("No observations within the last six months.").foregroundStyle(.secondary)
       }
       ForEach(observations.prefix(6)) { observation in
         VStack(alignment: .leading, spacing: 3) {
@@ -74,8 +78,6 @@ struct BuildingRentSection: View {
         }
         .opacity(model.isRentObservationStale(observation) ? 0.58 : 1)
       }
-    } else {
-      Text("No observations within the last six months.").foregroundStyle(.secondary)
     }
   }
 }
@@ -102,7 +104,7 @@ struct BuildingCommuteSection: View {
       Button("Refresh transit times", systemImage: "arrow.clockwise") {
         Task { await model.refreshCommutes(for: building) }
       }
-      if let commuteError = model.commuteError {
+      if let commuteError = model.commuteErrors[building.id] {
         Text(commuteError).font(.footnote).foregroundStyle(.red)
       }
     }

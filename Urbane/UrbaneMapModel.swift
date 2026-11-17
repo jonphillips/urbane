@@ -30,7 +30,8 @@ final class UrbaneMapModel {
   var placeSearchWaitingFor: Duration?
   var rentImportMessage: String?
   var rentImportError: String?
-  var commuteError: String?
+  var commuteErrors: [UUID: String] = [:]
+  var commuteBuildingsInProgress: Set<UUID> = []
   var currentDate: Date { now }
 
   func isRentObservationStale(_ observation: RentObservation) -> Bool {
@@ -47,6 +48,7 @@ final class UrbaneMapModel {
         try Search.insert { Search(id: uuid(), title: "Search") }.execute(db)
       }
     }
+    Task { await refreshMissingCommutes() }
   }
 
   func search(_ query: String) async throws -> [PlaceMatch] {
@@ -83,20 +85,22 @@ final class UrbaneMapModel {
     status: BuildingStatus = .exploring, rejectionReason: String? = nil,
     match: PlaceMatch, streetEasyURL: String? = nil, websiteURL: String? = nil
   ) {
+    let addedBuilding = Building(
+      id: uuid(), neighborhoodID: neighborhoodID, name: name,
+      address: address.isEmpty ? match.address : address,
+      latitude: match.latitude, longitude: match.longitude,
+      mapItemIdentifier: match.mapItemIdentifier,
+      summary: summary, status: status, rejectionReason: rejectionReason,
+      streetEasyURL: streetEasyURL, websiteURL: websiteURL
+    )
     withErrorReporting {
       try database.write { db in
         try Building.insert {
-          Building(
-            id: uuid(), neighborhoodID: neighborhoodID, name: name,
-            address: address.isEmpty ? match.address : address,
-            latitude: match.latitude, longitude: match.longitude,
-            mapItemIdentifier: match.mapItemIdentifier,
-            summary: summary, status: status, rejectionReason: rejectionReason,
-            streetEasyURL: streetEasyURL, websiteURL: websiteURL
-          )
+          addedBuilding
         }.execute(db)
       }
     }
+    Task { await refreshCommutes(for: addedBuilding, onlyMissing: true) }
   }
 
   func updateNeighborhoodChapter(_ neighborhood: Neighborhood, chapter: String) {
@@ -313,9 +317,8 @@ final class UrbaneMapModel {
         }
       }
     }
-    for building in importedBuildings {
-      Task { await refreshCommutes(for: building) }
-    }
+    let buildingsToCheck = buildings + importedBuildings
+    Task { await refreshMissingCommutes(for: buildingsToCheck) }
   }
   // swiftlint:enable function_body_length
 

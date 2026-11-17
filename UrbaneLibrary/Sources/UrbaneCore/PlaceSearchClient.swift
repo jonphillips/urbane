@@ -93,7 +93,7 @@ public enum PlaceSearchFailureDisposition: Equatable, Sendable {
   }
 }
 
-/// Serializes the app's place searches and enforces Apple's request budget.
+/// Serializes MapKit requests and enforces Apple's shared request budget.
 public actor PlaceSearchPacer {
   // Apple's limit is 50 requests per 60 seconds. A 45 request budget reserves five
   // requests for searches outside this client (50 - 45) within that same window.
@@ -119,6 +119,18 @@ public actor PlaceSearchPacer {
     using operation: @escaping @Sendable (String) async throws -> [PlaceMatch],
     onWaiting: @escaping @Sendable (Duration?) async -> Void = { _ in }
   ) async throws -> [PlaceMatch] {
+    do {
+      return try await request(onWaiting: onWaiting) { try await operation(query) }
+    } catch {
+      if Self.disposition(for: error) == .noMatch { return [] }
+      throw error
+    }
+  }
+
+  public func request<Value: Sendable>(
+    onWaiting: @escaping @Sendable (Duration?) async -> Void = { _ in },
+    using operation: @escaping @Sendable () async throws -> Value
+  ) async throws -> Value {
     try await acquire()
     defer { release() }
 
@@ -126,11 +138,11 @@ public actor PlaceSearchPacer {
     while true {
       try await waitForSlot(onWaiting: onWaiting)
       do {
-        return try await operation(query)
+        return try await operation()
       } catch {
         switch Self.disposition(for: error) {
         case .noMatch:
-          return []
+          throw error
         case .throttled where throttleWaits < Self.maximumThrottleWaits:
           throttleWaits += 1
           try await wait(Self.throttleWait, onWaiting: onWaiting)
@@ -228,7 +240,6 @@ public actor PlaceSearchPacer {
 
 extension PlaceSearchClient: DependencyKey {
   public static let liveValue: Self = {
-    let pacer = PlaceSearchPacer(clock: .live())
     let search: @Sendable (String) async throws -> [PlaceMatch] = { query in
       var request = MKLocalSearch.Request()
       request.naturalLanguageQuery = query
@@ -251,17 +262,28 @@ extension PlaceSearchClient: DependencyKey {
       }
     }
     return PlaceSearchClient(searchWithProgress: { query, onWaiting in
-      try await pacer.search(query: query, using: search, onWaiting: onWaiting)
+      @Dependency(\.mapKitRequestPacer) var pacer
+      return try await pacer.search(query: query, using: search, onWaiting: onWaiting)
     })
   }()
 
   public static let testValue = PlaceSearchClient { _ in [] }
 }
 
+private enum MapKitRequestPacerKey: DependencyKey {
+  static let liveValue = PlaceSearchPacer(clock: .live())
+  static let testValue = PlaceSearchPacer(clock: .live())
+}
+
 public extension DependencyValues {
   var placeSearch: PlaceSearchClient {
     get { self[PlaceSearchClient.self] }
     set { self[PlaceSearchClient.self] = newValue }
+  }
+
+  var mapKitRequestPacer: PlaceSearchPacer {
+    get { self[MapKitRequestPacerKey.self] }
+    set { self[MapKitRequestPacerKey.self] = newValue }
   }
 }
 
