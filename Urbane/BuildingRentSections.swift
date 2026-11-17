@@ -97,6 +97,7 @@ struct BuildingCommuteSection: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             }
+            .contentShape(Rectangle())
           }
           .buttonStyle(.plain)
           .accessibilityHint("Opens transit directions in Maps")
