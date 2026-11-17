@@ -10,17 +10,16 @@ struct LookAroundGalleryPage: View {
   let latitude: Double
   let longitude: Double
   let mapItemIdentifier: String?
-  let onAdjust: (() -> Void)?
   @State private var image: UIImage?
   @State private var scene: MKLookAroundScene?
   @State private var showingLookAroundViewer = false
   private let imageryClient = UrbaneImageryClient()
 
-  init(vignette: BuildingVignette, onAdjust: @escaping () -> Void) {
+  init(vignette: BuildingVignette) {
     self.init(
       id: vignette.id.uuidString, placeName: vignette.placeName, caption: vignette.caption,
       latitude: vignette.latitude, longitude: vignette.longitude,
-      mapItemIdentifier: vignette.mapItemIdentifier, onAdjust: onAdjust
+      mapItemIdentifier: vignette.mapItemIdentifier
     )
   }
 
@@ -28,14 +27,13 @@ struct LookAroundGalleryPage: View {
     self.init(
       id: neighborhoodVignette.id.uuidString, placeName: neighborhoodVignette.placeName,
       caption: neighborhoodVignette.caption, latitude: neighborhoodVignette.latitude,
-      longitude: neighborhoodVignette.longitude, mapItemIdentifier: neighborhoodVignette.mapItemIdentifier,
-      onAdjust: nil
+      longitude: neighborhoodVignette.longitude, mapItemIdentifier: neighborhoodVignette.mapItemIdentifier
     )
   }
 
   init(
     id: String, placeName: String, caption: String, latitude: Double, longitude: Double,
-    mapItemIdentifier: String?, onAdjust: (() -> Void)?
+    mapItemIdentifier: String?
   ) {
     self.id = id
     self.placeName = placeName
@@ -43,7 +41,6 @@ struct LookAroundGalleryPage: View {
     self.latitude = latitude
     self.longitude = longitude
     self.mapItemIdentifier = mapItemIdentifier
-    self.onAdjust = onAdjust
   }
 
   var body: some View {
@@ -65,13 +62,6 @@ struct LookAroundGalleryPage: View {
       }
       .buttonStyle(.plain)
       GalleryLabel(text: caption.isEmpty ? placeName : "\(placeName) · \(caption)")
-      if let onAdjust {
-        Button("Adjust view", systemImage: "viewfinder", action: onAdjust)
-          .labelStyle(.iconOnly).buttonStyle(.borderless)
-          .accessibilityLabel("Adjust view for \(placeName)")
-          .padding(10)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-      }
     }
     .lookAroundViewer(isPresented: $showingLookAroundViewer, initialScene: scene)
     .task(id: id + "|\(latitude)|\(longitude)|\(mapItemIdentifier ?? "coordinate")") {

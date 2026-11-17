@@ -41,130 +41,96 @@ struct BuildingDetailSheet: View {
     "\(currentBuilding.latitude)|\(currentBuilding.longitude)|\(currentBuilding.mapItemIdentifier ?? "coordinate")"
   }
 
+  private var selectedVignette: BuildingVignette? {
+    model.buildingVignettes.first { $0.id.uuidString == selectedGalleryPage && $0.buildingID == building.id }
+  }
+
+  private var canAdjustCurrentPage: Bool {
+    selectedGalleryPage == "facade" || selectedVignette != nil
+  }
+
   var body: some View {
-    List {
-      Section {
-        VStack(alignment: .leading, spacing: 8) {
-          TabView(selection: $selectedGalleryPage) {
-          Button { showingMapViewer = true } label: {
-            Group {
-              if let postcard {
-                GalleryImage(image: postcard, title: "3D map")
-              } else {
-                PostcardFallback(building: currentBuilding)
+    VStack(spacing: 0) {
+      gallery
+      List {
+        Section {
+          HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+              Text(currentBuilding.name).font(.title2.weight(.semibold))
+              Text(currentBuilding.address).foregroundStyle(.secondary)
+              Text(statusLabel).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Fix location", systemImage: "mappin.and.ellipse") { fixingLocation = true }
+              .labelStyle(.iconOnly)
+              .accessibilityLabel("Fix building location")
+          }
+          if !currentBuilding.summary.isEmpty { Text(currentBuilding.summary) }
+        }
+
+        Section("Rent band") {
+          Label("Dated rental listings will appear here.", systemImage: "calendar")
+            .foregroundStyle(.secondary)
+        }
+
+        Section("What renters say") {
+          let reviews = model.reviews.filter { $0.buildingID == building.id }.sorted { $0.gatheredAt > $1.gatheredAt }
+          if reviews.isEmpty {
+            Text("No reviews imported yet.").foregroundStyle(.secondary)
+          } else {
+            ForEach(reviews) { review in
+              Button {
+                guard let url = URL(string: review.sourceURL) else { return }
+                selectedReviewURL = BrowserDestination(url: url, title: review.source)
+              } label: {
+                ReviewCard(review: review)
+                  .opacity(isStale(review.gatheredAt) ? 0.58 : 1)
+                  .contentShape(Rectangle())
+              }
+              .buttonStyle(.plain)
+            }
+            .onDelete { offsets in
+              for offset in offsets where reviews.indices.contains(offset) {
+                model.deleteBuildingReview(reviews[offset])
               }
             }
           }
-          .buttonStyle(.plain)
-          .tag("postcard")
+        }
+
+        Section {
           let vignettes = model.buildingVignettes.filter { $0.buildingID == building.id }.sorted { $0.sortOrder < $1.sortOrder }
           if vignettes.isEmpty {
-            LookAroundGalleryPage(
-              id: "\(currentBuilding.id)-facade", placeName: "Facade", caption: "",
-              latitude: currentBuilding.latitude, longitude: currentBuilding.longitude,
-              mapItemIdentifier: currentBuilding.mapItemIdentifier
-            ) { addingFacade = true }
-              .tag("facade")
+            Text("Add a few nearby corners that make the block feel like home.")
+              .foregroundStyle(.secondary)
           } else {
             ForEach(vignettes) { vignette in
-              LookAroundGalleryPage(vignette: vignette) { editingVignette = vignette }
-                .tag(vignette.id.uuidString)
-            }
-          }
-          if let data = currentBuilding.heroImage, let hero = UIImage(data: data) {
-            Button {
-              fullScreenHero = hero
-              showingHeroViewer = true
-            } label: {
-              GalleryImage(image: hero, title: "Chosen building image")
-            }
-            .buttonStyle(.plain)
-            .tag("hero")
-          }
-          }
-          .tabViewStyle(.page(indexDisplayMode: .automatic))
-          .aspectRatio(3.0 / 2.0, contentMode: .fit)
-        }
-        .padding(.vertical, 4)
-      }
-
-      Section {
-        HStack(alignment: .top) {
-          VStack(alignment: .leading, spacing: 4) {
-            Text(currentBuilding.name).font(.title2.weight(.semibold))
-            Text(currentBuilding.address).foregroundStyle(.secondary)
-            Text(statusLabel).font(.subheadline).foregroundStyle(.secondary)
-          }
-          Spacer()
-          Button("Fix location", systemImage: "mappin.and.ellipse") { fixingLocation = true }
-            .labelStyle(.iconOnly)
-            .accessibilityLabel("Fix building location")
-        }
-        if !currentBuilding.summary.isEmpty { Text(currentBuilding.summary) }
-      }
-
-      Section("Rent band") {
-        Label("Dated rental listings will appear here.", systemImage: "calendar")
-          .foregroundStyle(.secondary)
-      }
-
-      Section("What renters say") {
-        let reviews = model.reviews.filter { $0.buildingID == building.id }.sorted { $0.gatheredAt > $1.gatheredAt }
-        if reviews.isEmpty {
-          Text("No reviews imported yet.").foregroundStyle(.secondary)
-        } else {
-          ForEach(reviews) { review in
-            Button {
-              guard let url = URL(string: review.sourceURL) else { return }
-              selectedReviewURL = BrowserDestination(url: url, title: review.source)
-            } label: {
-              ReviewCard(review: review)
-                .opacity(isStale(review.gatheredAt) ? 0.58 : 1)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-          }
-          .onDelete { offsets in
-            for offset in offsets where reviews.indices.contains(offset) {
-              model.deleteBuildingReview(reviews[offset])
-            }
-          }
-        }
-      }
-
-      Section {
-        let vignettes = model.buildingVignettes.filter { $0.buildingID == building.id }.sorted { $0.sortOrder < $1.sortOrder }
-        if vignettes.isEmpty {
-          Text("Add a few nearby corners that make the block feel like home.")
-            .foregroundStyle(.secondary)
-        } else {
-          ForEach(vignettes) { vignette in
-            Button { editingVignette = vignette } label: {
-              VStack(alignment: .leading, spacing: 3) {
-                Text(vignette.placeName).font(.headline).foregroundStyle(.primary)
-                Text(vignette.caption).font(.subheadline).foregroundStyle(.secondary)
+              Button { editingVignette = vignette } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                  Text(vignette.placeName).font(.headline).foregroundStyle(.primary)
+                  Text(vignette.caption).font(.subheadline).foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 3)
               }
-              .padding(.vertical, 3)
+              .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .onMove { model.moveBuildingVignettes(buildingID: building.id, from: $0, to: $1) }
+            .onDelete { offsets in
+              for offset in offsets where vignettes.indices.contains(offset) {
+                model.deleteBuildingVignette(vignettes[offset])
+              }
+            }
           }
-          .onMove { model.moveBuildingVignettes(buildingID: building.id, from: $0, to: $1) }
-          .onDelete { offsets in
-            for offset in offsets where vignettes.indices.contains(offset) {
-              model.deleteBuildingVignette(vignettes[offset])
-            }
+          Button("Add place", systemImage: "plus") { addingVignette = true }
+        } header: {
+          HStack {
+            Text("Around the block")
+            Spacer()
+            EditButton().labelStyle(.iconOnly)
           }
         }
-        Button("Add place", systemImage: "plus") { addingVignette = true }
-      } header: {
-        HStack {
-          Text("Around the block")
-          Spacer()
-          EditButton().labelStyle(.iconOnly)
-        }
-      }
 
-      if let imageError { Section { Text(imageError).foregroundStyle(.red) } }
+        if let imageError { Section { Text(imageError).foregroundStyle(.red) } }
+      }
     }
     .navigationTitle("Building")
     .navigationBarTitleDisplayMode(.inline)
@@ -251,6 +217,63 @@ struct BuildingDetailSheet: View {
         .navigationTitle("Choose hero image")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingImagePicker = false } } }
       }
+    }
+  }
+
+  private var gallery: some View {
+    VStack(spacing: 8) {
+      TabView(selection: $selectedGalleryPage) {
+          Button { showingMapViewer = true } label: {
+            Group {
+              if let postcard {
+                GalleryImage(image: postcard, title: "3D map")
+              } else {
+                PostcardFallback(building: currentBuilding)
+              }
+            }
+          }
+          .buttonStyle(.plain)
+          .tag("postcard")
+          let vignettes = model.buildingVignettes.filter { $0.buildingID == building.id }.sorted { $0.sortOrder < $1.sortOrder }
+          if vignettes.isEmpty {
+            LookAroundGalleryPage(
+              id: "\(currentBuilding.id)-facade", placeName: "Facade", caption: "",
+              latitude: currentBuilding.latitude, longitude: currentBuilding.longitude,
+              mapItemIdentifier: currentBuilding.mapItemIdentifier
+            )
+              .tag("facade")
+          } else {
+            ForEach(vignettes) { vignette in
+              LookAroundGalleryPage(vignette: vignette)
+                .tag(vignette.id.uuidString)
+            }
+          }
+          if let data = currentBuilding.heroImage, let hero = UIImage(data: data) {
+            Button {
+              fullScreenHero = hero
+              showingHeroViewer = true
+            } label: {
+              GalleryImage(image: hero, title: "Chosen building image")
+            }
+            .buttonStyle(.plain)
+            .tag("hero")
+          }
+      }
+      .tabViewStyle(.page(indexDisplayMode: .automatic))
+      .aspectRatio(3.0 / 2.0, contentMode: .fit)
+      Button("Adjust view", systemImage: "viewfinder", action: adjustCurrentPage)
+        .buttonStyle(.bordered)
+        .disabled(!canAdjustCurrentPage)
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 12)
+  }
+
+  private func adjustCurrentPage() {
+    if selectedGalleryPage == "facade" {
+      addingFacade = true
+    } else if let selectedVignette {
+      editingVignette = selectedVignette
     }
   }
 
