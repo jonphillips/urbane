@@ -30,6 +30,9 @@ struct BuildingDetailSheet: View {
   @State private var showingHeroViewer = false
   @State private var editingLinks = false
   @State private var fullScreenHero: UIImage?
+  @State private var subwayStations: [SubwayStation] = []
+  @State private var subwayLoadError: String?
+  @State private var subwayIsLoading = true
 
   private let imageryClient = UrbaneImageryClient()
 
@@ -68,6 +71,12 @@ struct BuildingDetailSheet: View {
 
         BuildingRentSection(building: currentBuilding, model: model)
         BuildingCommuteSection(building: currentBuilding, model: model)
+        BuildingSubwaySection(
+          building: currentBuilding,
+          stations: subwayStations,
+          isLoading: subwayIsLoading,
+          error: subwayLoadError
+        )
 
         Section("What renters say") {
           let reviews = model.reviews.filter { $0.buildingID == building.id }.sorted { $0.gatheredAt > $1.gatheredAt }
@@ -142,6 +151,11 @@ struct BuildingDetailSheet: View {
       }
     }
     .task(id: imageRecipe) { await loadImagery() }
+    .task {
+      do { subwayStations = try SubwayStations.load() }
+      catch { subwayLoadError = error.localizedDescription }
+      subwayIsLoading = false
+    }
     .fullScreenCover(isPresented: $showingMapViewer) {
       FullScreenPostcardMap(building: currentBuilding)
     }
