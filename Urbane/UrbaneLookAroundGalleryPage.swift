@@ -57,12 +57,14 @@ struct LookAroundGalleryPage: View {
             GalleryUnavailable(title: "No Look Around coverage", detail: "The map postcard remains available.")
           }
         }
-        .frame(maxWidth: .infinity).aspectRatio(3.0 / 2.0, contentMode: .fit)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 14))
       }
       .buttonStyle(.plain)
       GalleryLabel(text: caption.isEmpty ? placeName : "\(placeName) · \(caption)")
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .lookAroundViewer(isPresented: $showingLookAroundViewer, initialScene: scene)
     .task(id: id + "|\(latitude)|\(longitude)|\(mapItemIdentifier ?? "coordinate")") {
       let snapshot = await imageryClient.lookAroundSnapshot(

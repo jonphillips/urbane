@@ -260,7 +260,8 @@ struct BuildingDetailSheet: View {
           }
       }
       .tabViewStyle(.page(indexDisplayMode: .automatic))
-      .aspectRatio(3.0 / 2.0, contentMode: .fit)
+      .frame(maxWidth: .infinity)
+      .containerRelativeFrame(.vertical) { length, _ in length * 0.55 }
       Button("Adjust view", systemImage: "viewfinder", action: adjustCurrentPage)
         .buttonStyle(.bordered)
         .disabled(!canAdjustCurrentPage)
@@ -364,7 +365,8 @@ struct GalleryImage: View {
 
   var body: some View {
     Image(uiImage: image).resizable().scaledToFill()
-      .frame(maxWidth: .infinity).aspectRatio(3.0 / 2.0, contentMode: .fit)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .clipped()
       .overlay(alignment: .bottomLeading) { GalleryLabel(text: title) }
       .clipShape(RoundedRectangle(cornerRadius: 14))
   }
@@ -389,7 +391,7 @@ struct GalleryUnavailable: View {
       Text(title).font(.headline)
       Text(detail).font(.footnote).foregroundStyle(.secondary)
     }
-    .frame(maxWidth: .infinity).aspectRatio(3.0 / 2.0, contentMode: .fit)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
   }
 }
@@ -404,8 +406,7 @@ struct PostcardFallback: View {
       Text(building.address).font(.subheadline).foregroundStyle(.secondary)
       Text("Map imagery will appear when Apple has coverage.").font(.footnote).foregroundStyle(.secondary)
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .aspectRatio(3.0 / 2.0, contentMode: .fit)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     .padding(18).background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
   }
 }
