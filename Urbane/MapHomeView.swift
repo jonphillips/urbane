@@ -10,6 +10,7 @@ struct MapHomeView: View {
   @State private var showingBuilding = false
   @State private var showingImport = false
   @State private var selectedBuilding: Building?
+  @State private var selectedNeighborhood: Neighborhood?
   @State private var camera: MapCameraPosition = .region(Self.initialRegion)
 
   @FetchAll(Neighborhood.order(by: \.name)) private var neighborhoods
@@ -26,8 +27,12 @@ struct MapHomeView: View {
           .foregroundStyle(.blue.opacity(0.10))
           .stroke(.blue.opacity(0.35), lineWidth: 1)
           Annotation(neighborhood.name, coordinate: CLLocationCoordinate2D(latitude: neighborhood.centerLatitude, longitude: neighborhood.centerLongitude)) {
-            Text(neighborhood.name).font(.caption.weight(.semibold)).padding(5).background(.regularMaterial, in: Capsule())
+            Button { selectedNeighborhood = neighborhood } label: {
+              Text(neighborhood.name).font(.caption.weight(.semibold)).padding(5).background(.regularMaterial, in: Capsule())
+            }
+            .buttonStyle(.plain)
           }
+          .annotationTitles(.hidden)
         }
         ForEach(buildings) { building in
           Annotation(building.name, coordinate: CLLocationCoordinate2D(latitude: building.latitude, longitude: building.longitude)) {
@@ -59,7 +64,21 @@ struct MapHomeView: View {
       .sheet(isPresented: $showingNeighborhood) { AddNeighborhoodSheet(model: model) }
       .sheet(isPresented: $showingBuilding) { AddBuildingSheet(model: model) }
       .sheet(isPresented: $showingImport) { ChatImportSheet(model: model) }
-      .sheet(item: $selectedBuilding) { building in BuildingLocationSheet(building: building, model: model) }
+      .sheet(item: $selectedBuilding) { building in
+        NavigationStack {
+          BuildingDetailSheet(building: building, model: model)
+            .toolbar {
+              ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { selectedBuilding = nil }
+              }
+            }
+        }
+        .presentationSizing(.page)
+      }
+      .sheet(item: $selectedNeighborhood) { neighborhood in
+        NeighborhoodDetailSheet(neighborhood: neighborhood, model: model)
+          .presentationSizing(.page)
+      }
       .task { model.bootstrap() }
     }
   }
@@ -86,8 +105,8 @@ private struct AddNeighborhoodSheet: View {
   @State private var results: [PlaceMatch] = []
   @State private var selected: PlaceMatch?
   @State private var busy = false
-  @State private var latitudeSpan = 0.06
-  @State private var longitudeSpan = 0.06
+  @State private var latitudeSpan = 0.02
+  @State private var longitudeSpan = 0.02
   @State private var centerLatitude = ""
   @State private var centerLongitude = ""
   @State private var error: String?
@@ -100,8 +119,8 @@ private struct AddNeighborhoodSheet: View {
         ForEach(results) { place in
           Button {
             selected = place
-            latitudeSpan = 0.06
-            longitudeSpan = 0.06
+            latitudeSpan = 0.02
+            longitudeSpan = 0.02
             centerLatitude = String(place.latitude)
             centerLongitude = String(place.longitude)
           } label: {
@@ -252,7 +271,7 @@ private struct AddBuildingSheet: View {
   }
 }
 
-private struct BuildingLocationSheet: View {
+struct BuildingLocationSheet: View {
   let building: Building
   let model: UrbaneMapModel
   @Environment(\.dismiss) private var dismiss

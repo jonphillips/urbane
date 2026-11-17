@@ -1,4 +1,6 @@
 import CoreLocation
+import CryptoKit
+import Foundation
 import MapKit
 import UIKit
 
@@ -17,6 +19,51 @@ struct ImageryPair {
 }
 
 struct UrbaneImageryClient {
+  func postcard(latitude: Double, longitude: Double, mapItemIdentifier: String?) async -> UIImage? {
+    let recipe = "hybrid3d|\(latitude)|\(longitude)|\(mapItemIdentifier ?? "coordinate")|55|350|30|600x400"
+    if let cached = Self.cachedImage(for: recipe) { return cached }
+    let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    let options = MKMapSnapshotter.Options()
+    options.size = Self.snapshotSize
+    options.preferredConfiguration = MKHybridMapConfiguration(elevationStyle: .realistic)
+    options.camera = MKMapCamera(lookingAtCenter: coordinate, fromDistance: 350, pitch: 55, heading: 30)
+    do {
+      let image = try await MKMapSnapshotter(options: options).start().image
+      Self.cache(image, for: recipe)
+      return image
+    } catch {
+      return nil
+    }
+  }
+
+  func lookAroundScene(latitude: Double, longitude: Double, mapItemIdentifier: String?) async -> MKLookAroundScene? {
+    if let mapItemIdentifier,
+       let identifier = MKMapItem.Identifier(rawValue: mapItemIdentifier) {
+      do {
+        let mapItem = try await MKMapItemRequest(mapItemIdentifier: identifier).mapItem
+        if let scene = try await MKLookAroundSceneRequest(mapItem: mapItem).scene { return scene }
+      } catch {}
+    }
+    return try? await MKLookAroundSceneRequest(
+      coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    ).scene
+  }
+
+  func lookAroundSnapshot(latitude: Double, longitude: Double, mapItemIdentifier: String?) async -> UIImage? {
+    let recipe = "lookaround|\(latitude)|\(longitude)|\(mapItemIdentifier ?? "coordinate")|600x400"
+    if let cached = Self.cachedImage(for: recipe) { return cached }
+    guard let scene = await lookAroundScene(latitude: latitude, longitude: longitude, mapItemIdentifier: mapItemIdentifier) else { return nil }
+    let options = MKLookAroundSnapshotter.Options()
+    options.size = Self.snapshotSize
+    do {
+      let image = try await MKLookAroundSnapshotter(scene: scene, options: options).snapshot.image
+      Self.cache(image, for: recipe)
+      return image
+    } catch {
+      return nil
+    }
+  }
+
   func preview(placeName: String, address: String) async -> ImageryPair {
     let request = MKLocalSearch.Request()
     request.naturalLanguageQuery = "\(placeName), \(address)"
@@ -96,6 +143,23 @@ struct UrbaneImageryClient {
     distanceMeters: 350,
     headingDegrees: 30
   )
+
+  private static func cachedImage(for recipe: String) -> UIImage? {
+    guard let url = cacheURL(for: recipe), let data = try? Data(contentsOf: url) else { return nil }
+    return UIImage(data: data)
+  }
+
+  private static func cache(_ image: UIImage, for recipe: String) {
+    guard let data = image.jpegData(compressionQuality: 0.84), let url = cacheURL(for: recipe) else { return }
+    try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try? data.write(to: url, options: .atomic)
+  }
+
+  private static func cacheURL(for recipe: String) -> URL? {
+    guard let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+    let name = SHA256.hash(data: Data(recipe.utf8)).map { String(format: "%02x", $0) }.joined()
+    return cache.appendingPathComponent("UrbanePostcards", isDirectory: true).appendingPathComponent("\(name).jpg")
+  }
 }
 
 private struct PostcardCamera {
