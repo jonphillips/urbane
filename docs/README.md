@@ -8,5 +8,6 @@
 - [chat-contract.md](chat-contract.md): the Claude Project instructions that Import from chat reads (ADR-0006).
 - [verification.md](verification.md): the gate.
 - [device-passes.md](device-passes.md): owed device passes.
+- [PROD-CUTOVER.md](PROD-CUTOVER.md): turning on sync and sharing through Production (M1 · S8b).
 - [open-questions.md](open-questions.md): candidates and pending decisions (architect and Jon only).
 - [DONE-LOG.md](DONE-LOG.md): history.

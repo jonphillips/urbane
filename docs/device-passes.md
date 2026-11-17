@@ -14,5 +14,5 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
 
 ## Held
 
-- **M1 · S8 sharing pass:** Wendy accepts the share on her own iPad, and each of us sees the other's
-  reaction within a minute. Held until S8 merges.
+- **M1 · S8b sharing pass:** Wendy accepts the share on her own iPad, and each of us sees the other's
+  reaction within a minute. Held until S8b merges and the [PROD-CUTOVER](PROD-CUTOVER.md) steps are done.
