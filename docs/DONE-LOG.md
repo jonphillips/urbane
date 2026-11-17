@@ -3,6 +3,15 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — M1 · S6, S7 and S7b device pass
+
+- **Result:** Passed on Jon's iPad ("overall things look good"). Covered: the S6 checks (transit
+  times, the StreetEasy 2BR CSV import, Edit links, and the building sheet staying open through rent
+  capture, #19), S7's subway markers and nearest stations, and S7b's rent capture and marker scaling.
+  Rent capture on 420 Kent works once the page's **2 beds** tab is selected. With the default Studio
+  tab, it sees only the five studios. S7c makes the message say so, and adds transit directions from
+  commute rows. Jon merged #22 after the pass.
+
 ## 2026-11-17 — M1 S7b — Fixes from the S6 and S7 device pass (`m1/s7b-rent-and-subway-fixes`)
 
 - **Result:** Rent capture now uses guided structured output, filters and normalizes two bedroom units, reports what the model found, and exposes reduced page text for copying when no candidates match. Subway station markers now scale with camera distance and remain visible through 10 km.

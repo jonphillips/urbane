@@ -182,6 +182,30 @@ StreetEasy on 420 Kent's building page offers #560, #802 and #1009 and nothing e
 markers show at the altitude of Jon's Midtown/LIC screenshot, and are about half again as big
 fully zoomed in.
 
+### S7c — Two touches from the S7b pass
+
+Jon's iPad pass on 2026-11-17: rent capture and the subway markers work. Two small asks came out of it.
+
+1. **Point at the 2 beds tab.** On the iPad, StreetEasy's building page shows one bedroom tab at a
+   time, and its default tab (Studio) is the only one the capture can read. Selecting **2 beds**
+   first makes capture work. Don't try to read hidden tabs. Instead, when units were found but none
+   with 2 bedrooms, the message becomes: "Found N units on this page, none with 2 bedrooms. If the
+   page has a 2 beds tab, tap it, then Extract rents again." The other messages stay as they are.
+2. **Transit directions from a commute row.** Each row in "Commutes by transit" becomes a button,
+   with a trailing `arrow.up.right` and an accessibility hint of "Opens transit directions in Maps".
+   Tapping it calls `MKMapItem.openMaps(with: [origin, destination], launchOptions:
+   [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeTransit])`.
+   - The origin is the building's own map item (`MKMapItemRequest` with its `mapItemIdentifier`)
+     when it has one. Otherwise, or if that request fails, it's a map item at the building's
+     coordinate named after the building.
+   - The destination is a map item at the `CommuteDestination` coordinate, named by its
+     `displayName`.
+   - Use MapKit only (ADR-0002). Don't build a URL to Apple Maps.
+
+**Done when:** a test covers the new no-2BR message (which depends on the count), and the gate
+passes. Device gate: on 420 Kent's building page, the Studio tab shows the new message; tapping
+a commute row opens Apple Maps with transit directions from the building to that destination.
+
 ### S8 — Two opinions, sharing on
 
 The `people` table and the "this is me" binding, following Galavant ADR-0051. Per-person reactions,
@@ -208,6 +232,7 @@ the building has at least one Tuesday stop.
 - **Dispatch 5:** S7, the subway on the map. It goes ahead of sharing because transit decides
   whether a building is worth having at all (Jon, 2026-11-16).
 - **Dispatch 5b:** S7b, fixes from the S6 and S7 device pass (Jon, 2026-11-17), ahead of sharing.
+- **Dispatch 5c:** S7c, two touches from the S7b pass (Jon, 2026-11-17), ahead of sharing.
 - **Dispatch 6:** S8, alone (sync and sharing).
 - **Dispatch 7:** S9.
 
@@ -221,5 +246,6 @@ the building has at least one Tuesday stop.
 - [x] S6 — Rent numbers and commutes
 - [x] S7 — The subway on the map
 - [x] S7b — Fixes from the S6 and S7 device pass
+- [ ] S7c — Two touches from the S7b pass
 - [ ] S8 — Two opinions, sharing on
 - [ ] S9 — "A Tuesday here"
