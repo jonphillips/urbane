@@ -6,6 +6,11 @@ import UrbaneSchema
 
 @testable import UrbaneCore
 
+private actor ModelRequestCapture {
+  private(set) var request: ModelRequest?
+  func store(_ request: ModelRequest) { self.request = request }
+}
+
 @Suite struct RentNumbersTests {
   @Test func parsesRealDashboardFixtureUsingOnlyRecentNeighborhoodMonths() throws {
     // Source: https://cdn-charts.streeteasy.com/rentals/TwoBd/medianAskingRent_TwoBd.zip
@@ -119,6 +124,68 @@ import UrbaneSchema
     #expect(!text.contains("$4,000"))
   }
 
+  @Test func reducerMatchesSimilarAttributesWithoutCaseSensitivity() {
+    let html = #"<main><section><p>$4,395 for rent · 2 beds · #1F</p></section><div class="SimilarListings_wrap"><p>$4,000 for rent</p></div></main>"#
+    let text = StreetEasyPageReducer.reduce(html)
+    #expect(text.contains("$4,395"))
+    #expect(!text.contains("$4,000"))
+  }
+
+  @Test func reducerTreatsScriptAndStyleAsRawText() {
+    let html = #"<main><p>$4,395 for rent</p><script>var s = "</main>"; var t = "secret token";</script><p>after</p></main>"#
+    #expect(StreetEasyPageReducer.reduce(html) == "$4,395 for rent after")
+  }
+
+  @Test func realBuildingFixtureRetainsListingRentsAndFitsModelBudget() async throws {
+    let (html, url) = try loadFixture("streeteasy-420-kent-avenue-building")
+    let reduced = StreetEasyPageReducer.reduce(html)
+    for expected in ["#560", "$7,482", "#802", "$7,282", "#1009", "$7,105"] {
+      #expect(reduced.contains(expected))
+    }
+    #expect(reduced.count <= RentListingExtractor.maximumInputCharacters)
+    let request = try await captureRequest(from: html, sourceURL: url)
+    assertReducedTextWasSent(request, reduced: reduced)
+  }
+
+  @Test func realListingFixtureRetainsTargetListingAndOmitsSimilarHomes() async throws {
+    let (html, url) = try loadFixture("streeteasy-420-kent-avenue-560-listing")
+    let reduced = StreetEasyPageReducer.reduce(html)
+    #expect(reduced.contains("#560"))
+    #expect(reduced.contains("$7,482"))
+    #expect(reduced.count <= RentListingExtractor.maximumInputCharacters)
+    #expect(!reduced.localizedCaseInsensitiveContains("similar homes"))
+    let request = try await captureRequest(from: html, sourceURL: url)
+    assertReducedTextWasSent(request, reduced: reduced)
+  }
+
+  @Test func buildingLinkValidationAcceptsHTTPURLsAndStreetEasySubdomains() throws {
+    #expect(try BuildingLinkValidator.validate("https://example.com/building", for: .website) == "https://example.com/building")
+    #expect(try BuildingLinkValidator.validate("http://www.streeteasy.com/building", for: .streetEasy) == "http://www.streeteasy.com/building")
+  }
+
+  @Test func buildingLinkValidationAllowsEmptyValuesToClearLinks() throws {
+    #expect(try BuildingLinkValidator.validate("  \n", for: .website) == nil)
+    #expect(try BuildingLinkValidator.validate("", for: .streetEasy) == nil)
+  }
+
+  @Test func buildingLinkValidationRejectsMissingSchemeAndNamesField() {
+    #expect(throws: BuildingLinkValidationError.invalidURL(.website)) {
+      try BuildingLinkValidator.validate("example.com/building", for: .website)
+    }
+  }
+
+  @Test func buildingLinkValidationRejectsNonHTTPSScheme() {
+    #expect(throws: BuildingLinkValidationError.invalidURL(.website)) {
+      try BuildingLinkValidator.validate("mailto:hello@example.com", for: .website)
+    }
+  }
+
+  @Test func buildingLinkValidationRestrictsStreetEasyHost() {
+    #expect(throws: BuildingLinkValidationError.invalidStreetEasyHost) {
+      try BuildingLinkValidator.validate("https://example.com/building", for: .streetEasy)
+    }
+  }
+
   @Test func extractorSendsReducedListingTextToOnDeviceModel() async throws {
     let html = "<html><head><script>private menu</script></head><main><p>978 2nd Avenue #1F</p><p>$4,395 for rent · 2 beds</p><section><h2>Similar homes</h2>$4,000 for rent</section></main></html>"
     let extraction = try await withDependencies {
@@ -146,5 +213,31 @@ import UrbaneSchema
     #expect(RentListingExtractor.parse(#"{"listings":[{"rent":0},{"rent":4395,"unit":"1F"}]}"#) == [
       RentListingCandidate(rent: 4_395, unit: "1F")
     ])
+  }
+
+  private func loadFixture(_ name: String) throws -> (String, URL) {
+    let url = try #require(Bundle.module.url(forResource: name, withExtension: "html"))
+    return (try String(contentsOf: url, encoding: .utf8), url)
+  }
+
+  private func captureRequest(from html: String, sourceURL: URL) async throws -> ModelRequest {
+    let capture = ModelRequestCapture()
+    _ = try await withDependencies {
+      $0.modelClient = StubModelClient { request in
+        await capture.store(request)
+        return ModelResponse(text: #"{"listings":[]}"#)
+      }
+    } operation: {
+      @Dependency(\.modelClient) var modelClient
+      return try await RentListingExtractor.extract(from: html, sourceURL: sourceURL, using: modelClient)
+    }
+    return try #require(await capture.request)
+  }
+
+  private func assertReducedTextWasSent(_ request: ModelRequest, reduced: String) {
+    #expect(request.tier == .onDevice)
+    let prompt = request.messages.last?.text ?? ""
+    #expect(prompt.contains(reduced))
+    #expect(!prompt.localizedCaseInsensitiveContains("<div"))
   }
 }

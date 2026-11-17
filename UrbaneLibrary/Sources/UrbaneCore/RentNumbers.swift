@@ -267,11 +267,13 @@ public enum StreetEasyPageReducer {
     guard let regex = try? NSRegularExpression(pattern: pattern) else { return "" }
     var output = ""
     var stack: [Element] = []
+    var rawTextElement: String?
     let range = NSRange(html.startIndex..., in: html)
     for match in regex.matches(in: html, range: range) {
       guard let tokenRange = Range(match.range, in: html) else { continue }
       let token = String(html[tokenRange])
       if token.hasPrefix("<!--") { continue }
+      if Self.consumeRawTextToken(token, element: &rawTextElement, stack: &stack) { continue }
       if token.hasPrefix("<") {
         if token.hasPrefix("</") {
           let name = tagName(token)
@@ -280,11 +282,10 @@ public enum StreetEasyPageReducer {
         }
         let name = tagName(token)
         guard !name.isEmpty else { continue }
+        if name == "script" || name == "style" { rawTextElement = name }
         let attributes = parseAttributes(token)
         let inherited = stack.last?.suppressed ?? false
-        let isSimilar = attributes.values.contains { value in
-          ["similar", "related-homes", "related_homes"].contains(where: value.contains)
-        }
+        let isSimilar = hasSimilarAttribute(attributes)
         let styleHidesElement = attributes["style"]?.split(separator: ";").contains { declaration in
           let pair = declaration.split(separator: ":", maxSplits: 1).map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -321,6 +322,25 @@ public enum StreetEasyPageReducer {
     let contextStart = normalized.index(start, offsetBy: -min(2_000, normalized.distance(from: normalized.startIndex, to: start)))
     let contextEnd = normalized.index(contextStart, offsetBy: maximumCharacters, limitedBy: normalized.endIndex) ?? normalized.endIndex
     return String(normalized[contextStart..<contextEnd])
+  }
+
+  private static func consumeRawTextToken(
+    _ token: String, element: inout String?, stack: inout [Element]
+  ) -> Bool {
+    guard let active = element else { return false }
+    let closingTag = #"^</\s*\#(active)\s*>$"#
+    guard let regex = try? NSRegularExpression(pattern: closingTag, options: [.caseInsensitive]),
+          regex.firstMatch(in: token, range: NSRange(token.startIndex..., in: token)) != nil else { return true }
+    if let index = stack.lastIndex(where: { $0.name == active }) { stack.removeSubrange(index...) }
+    element = nil
+    return true
+  }
+
+  private static func hasSimilarAttribute(_ attributes: [String: String]) -> Bool {
+    attributes.values.contains { value in
+      let normalized = value.lowercased()
+      return ["similar", "related-homes", "related_homes"].contains(where: normalized.contains)
+    }
   }
 
   private static func tagName(_ token: String) -> String {
@@ -398,7 +418,7 @@ public enum RentListingExtractor {
     Extract only rental units explicitly shown in this rendered StreetEasy page.
     Return JSON only: {"listings":[{"rent":4395,"unit":"1F","squareFeet":null}]}.
     Include only 2-bedroom rentals. Do not infer unit, square feet, or rent. Do not
-    include similar homes or historical prices. Return an empty array when none qualify.
+    include similar homes, historical prices, or neighborhood medians. Return an empty array when none qualify.
     """
 
   public static func extract(

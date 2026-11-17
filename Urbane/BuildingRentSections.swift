@@ -11,11 +11,21 @@ struct BuildingRentSection: View {
   @State private var review: RentReviewContext?
   @State private var error: String?
 
+  private var streetEasyPageURL: URL? {
+    guard let value = building.streetEasyURL,
+          let validated = try? BuildingLinkValidator.validate(value, for: .streetEasy) else { return nil }
+    return URL(string: validated)
+  }
+
   var body: some View {
     Section("Rent band") {
       rentBand
       Button("Capture from StreetEasy", systemImage: "magnifyingglass") { showingBrowser = true }
-        .disabled(URL(string: building.streetEasyURL ?? "") == nil)
+        .disabled(streetEasyPageURL == nil)
+      if streetEasyPageURL == nil {
+        Text("Add a StreetEasy link in Edit links to capture rents.")
+          .font(.footnote).foregroundStyle(.secondary)
+      }
       if let error { Text(error).font(.footnote).foregroundStyle(.red) }
     }
     .onChange(of: showingBrowser) { _, isShowing in
@@ -25,7 +35,7 @@ struct BuildingRentSection: View {
       }
     }
     .sheet(isPresented: $showingBrowser) {
-      if let url = URL(string: building.streetEasyURL ?? "") {
+      if let url = streetEasyPageURL {
         WebExtractorBrowser(startURL: url, title: "Capture rents", confirmLabel: "Extract rents") { html, pageURL in
           let sourceURL = pageURL ?? url
           do {
