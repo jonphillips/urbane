@@ -1,6 +1,7 @@
 import MapKit
 import SQLiteData
 import SwiftUI
+import UniformTypeIdentifiers
 import UrbaneCore
 import UrbaneSchema
 
@@ -9,6 +10,8 @@ struct MapHomeView: View {
   @State private var showingNeighborhood = false
   @State private var showingBuilding = false
   @State private var showingImport = false
+  @State private var showingRentCSVImporter = false
+  @State private var rentImportNotice: String?
   @State private var selectedBuilding: Building?
   @State private var selectedNeighborhood: Neighborhood?
   @State private var camera: MapCameraPosition = .region(Self.initialRegion)
@@ -59,11 +62,30 @@ struct MapHomeView: View {
           Button("Neighborhood", systemImage: "map") { showingNeighborhood = true }
           Button("Building", systemImage: "plus") { showingBuilding = true }
           Button("Import", systemImage: "doc.on.clipboard") { showingImport = true }
+          Menu("Settings", systemImage: "gearshape") {
+            Button("Import neighborhood rents", systemImage: "tablecells") { showingRentCSVImporter = true }
+          }
         }
       }
       .sheet(isPresented: $showingNeighborhood) { AddNeighborhoodSheet(model: model) }
       .sheet(isPresented: $showingBuilding) { AddBuildingSheet(model: model) }
       .sheet(isPresented: $showingImport) { ChatImportSheet(model: model) }
+      .fileImporter(isPresented: $showingRentCSVImporter, allowedContentTypes: [.commaSeparatedText]) { result in
+        do {
+          let url = try result.get()
+          let didStart = url.startAccessingSecurityScopedResource()
+          defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+          model.importNeighborhoodRents(try Data(contentsOf: url))
+          rentImportNotice = model.rentImportMessage ?? model.rentImportError
+        } catch {
+          rentImportNotice = error.localizedDescription
+        }
+      }
+      .alert("Neighborhood rent import", isPresented: Binding(
+        get: { rentImportNotice != nil }, set: { if !$0 { rentImportNotice = nil } }
+      )) {
+        Button("OK") { rentImportNotice = nil }
+      } message: { Text(rentImportNotice ?? "") }
       .sheet(item: $selectedBuilding) { building in
         NavigationStack {
           BuildingDetailSheet(building: building, model: model)

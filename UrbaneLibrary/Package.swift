@@ -12,6 +12,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
     .package(path: "../../jon-platform/packages/LLMHandoffKit"),
+    .package(path: "../../jon-platform/packages/LLMClientKit"),
   ],
   targets: [
     .target(
@@ -27,6 +28,7 @@ let package = Package(
         "UrbaneSchema",
         .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "LLMHandoffKit", package: "LLMHandoffKit"),
+        .product(name: "LLMClientKit", package: "LLMClientKit"),
       ]
     ),
     .testTarget(
@@ -38,7 +40,8 @@ let package = Package(
     ),
     .testTarget(
       name: "UrbaneCoreTests",
-      dependencies: ["UrbaneCore", "UrbaneSchema"]
+      dependencies: ["UrbaneCore", "UrbaneSchema", .product(name: "LLMClientKit", package: "LLMClientKit")],
+      resources: [.process("Fixtures")]
     ),
   ]
 )

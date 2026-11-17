@@ -59,10 +59,8 @@ struct BuildingDetailSheet: View {
           if !currentBuilding.summary.isEmpty { Text(currentBuilding.summary) }
         }
 
-        Section("Rent band") {
-          Label("Dated rental listings will appear here.", systemImage: "calendar")
-            .foregroundStyle(.secondary)
-        }
+        BuildingRentSection(building: currentBuilding, model: model)
+        BuildingCommuteSection(building: currentBuilding, model: model)
 
         Section("What renters say") {
           let reviews = model.reviews.filter { $0.buildingID == building.id }.sorted { $0.gatheredAt > $1.gatheredAt }
