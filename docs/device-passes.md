@@ -10,7 +10,6 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
 ## Owed now
 
 *(nothing yet)*
-- **M1 S4 + S5:** On Jon’s iPad: swipe five real buildings, confirm the no-image/no-Look-Around postcard remains readable, and adjust one misfaced Look Around view. ([M1](milestones/M1-browse.md))
 
 ## Held
 
