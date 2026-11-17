@@ -69,9 +69,8 @@ struct BuildingLinksEditor: View {
   }
 
   private func save() {
-    guard let website = try? BuildingLinkValidator.validate(websiteURL, for: .website),
-          let streetEasy = try? BuildingLinkValidator.validate(streetEasyURL, for: .streetEasy) else { return }
-    model.updateBuildingLinks(building, websiteURL: website, streetEasyURL: streetEasy)
+    guard let links = try? BuildingLinkValidator.validateLinks(website: websiteURL, streetEasy: streetEasyURL) else { return }
+    model.updateBuildingLinks(building, websiteURL: links.website, streetEasyURL: links.streetEasy)
     dismiss()
   }
 }

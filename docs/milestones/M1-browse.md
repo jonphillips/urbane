@@ -161,7 +161,7 @@ the building has at least one Tuesday stop.
 - [x] S3 — Import from chat
 - [x] S4 — The building postcard
 - [x] S5 — Neighborhood chapters
-- [ ] S6 — Rent numbers and commutes
+- [x] S6 — Rent numbers and commutes
 - [ ] S7 — The subway on the map
 - [ ] S8 — Two opinions, sharing on
 - [ ] S9 — "A Tuesday here"

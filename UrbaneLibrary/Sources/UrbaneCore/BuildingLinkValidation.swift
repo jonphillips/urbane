@@ -42,4 +42,12 @@ public enum BuildingLinkValidator {
     }
     return trimmed
   }
+
+  public static func validateLinks(
+    website: String, streetEasy: String
+  ) throws -> (website: String?, streetEasy: String?) {
+    let validatedWebsite = try validate(website, for: .website)
+    let validatedStreetEasy = try validate(streetEasy, for: .streetEasy)
+    return (validatedWebsite, validatedStreetEasy)
+  }
 }

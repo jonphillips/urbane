@@ -168,6 +168,20 @@ private actor ModelRequestCapture {
     #expect(try BuildingLinkValidator.validate("", for: .streetEasy) == nil)
   }
 
+  @Test func buildingLinkValidationKeepsEmptyFieldsWhenTheOtherLinkIsFilled() throws {
+    let links = try BuildingLinkValidator.validateLinks(
+      website: "", streetEasy: "https://streeteasy.com/building/example"
+    )
+    #expect(links.website == nil)
+    #expect(links.streetEasy == "https://streeteasy.com/building/example")
+  }
+
+  @Test func buildingLinkValidationAllowsBothFieldsToBeCleared() throws {
+    let links = try BuildingLinkValidator.validateLinks(website: "", streetEasy: " ")
+    #expect(links.website == nil)
+    #expect(links.streetEasy == nil)
+  }
+
   @Test func buildingLinkValidationRejectsMissingSchemeAndNamesField() {
     #expect(throws: BuildingLinkValidationError.invalidURL(.website)) {
       try BuildingLinkValidator.validate("example.com/building", for: .website)
