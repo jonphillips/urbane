@@ -12,7 +12,7 @@ struct MapHomeView: View {
   @State private var showingImport = false
   @State private var showingRentCSVImporter = false
   @State private var showingPeopleSettings = false
-  @State private var showingRejectedBuildings = false
+  @State private var showingPassedBuildings = false
   @State private var rentImportNotice: String?
   @State private var selectedBuilding: Building?
   @State private var selectedNeighborhood: Neighborhood?
@@ -41,7 +41,7 @@ struct MapHomeView: View {
           }
           .annotationTitles(.hidden)
         }
-        ForEach(BuildingBrowse.visibleBuildings(buildings, showingRejected: showingRejectedBuildings)) { building in
+        ForEach(BuildingBrowse.visibleBuildings(buildings, showingRejected: showingPassedBuildings)) { building in
           Annotation(building.name, coordinate: CLLocationCoordinate2D(latitude: building.latitude, longitude: building.longitude)) {
             Button { selectedBuilding = building } label: {
               Image(systemName: "building.2.fill")
@@ -91,7 +91,7 @@ struct MapHomeView: View {
           Button("Building", systemImage: "building") { showingBuilding = true }
           Button("Import", systemImage: "sparkle.text.clipboard") { showingImport = true }
           Menu("Filters", systemImage: "line.3.horizontal.decrease") {
-            Toggle("Show rejected", isOn: $showingRejectedBuildings)
+            Toggle("Show passed", isOn: $showingPassedBuildings)
           }
           Menu("Settings", systemImage: "gearshape") {
             Button("People & identity", systemImage: "person.2") { showingPeopleSettings = true }
