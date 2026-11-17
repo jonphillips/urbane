@@ -223,6 +223,7 @@ struct BuildingDetailSheet: View {
             rentCaptureError = nil
             return .extracted
           } catch {
+            rentPageTextToCopy = StreetEasyPageReducer.reduce(html)
             rentCaptureError = error.localizedDescription
             return .notFound(message: "Rent extraction failed: \(error.localizedDescription)")
           }

@@ -251,9 +251,12 @@ private actor ModelRequestCapture {
     #expect(throws: RentListingExtractor.ExtractionError.invalidResponse) {
       try RentListingExtractor.parse("not JSON")
     }
-    let extraction = try RentListingExtractor.parse(##"{"listings":[{"bedrooms":0,"rent":2000,"unit":"studio"},{"bedrooms":1,"rent":3300,"unit":"2A"},{"bedrooms":2,"rent":0,"unit":"3B"},{"bedrooms":2,"rent":7482,"unit":"  # 560  "}]}"##)
-    #expect(extraction.unitsFound == 4)
-    #expect(extraction.candidates == [RentListingCandidate(rent: 7_482, unit: "560")])
+    let extraction = try RentListingExtractor.parse(##"{"listings":[{"bedrooms":0,"rent":2000,"unit":"studio"},{"bedrooms":1,"rent":3300,"unit":"2A"},{"bedrooms":2,"rent":0,"unit":"3B"},{"bedrooms":2,"rent":7482,"unit":"  # 560 - 420 Kent Avenue  "},{"bedrooms":2,"rent":7105,"unit":"#1009 - 420 Kent Avenue"}]}"##)
+    #expect(extraction.unitsFound == 5)
+    #expect(extraction.candidates == [
+      RentListingCandidate(rent: 7_482, unit: "560"),
+      RentListingCandidate(rent: 7_105, unit: "1009"),
+    ])
   }
 
   @Test func markerScaleClampsAndInterpolatesAcrossCameraDistances() {

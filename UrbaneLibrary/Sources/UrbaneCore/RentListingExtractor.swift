@@ -97,6 +97,8 @@ public enum RentListingExtractor {
       let unit = listing.unit.trimmingCharacters(in: .whitespacesAndNewlines)
         .replacingOccurrences(of: "^#\\s*", with: "", options: .regularExpression)
         .trimmingCharacters(in: .whitespacesAndNewlines)
+        .components(separatedBy: " - ").first?
+        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
       return RentListingCandidate(rent: listing.rent, unit: unit.isEmpty ? nil : unit)
     }
     return RentListingExtraction(unitsFound: response.listings.count, candidates: candidates)
