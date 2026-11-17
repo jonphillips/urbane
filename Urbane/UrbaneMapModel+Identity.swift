@@ -48,7 +48,7 @@ extension UrbaneMapModel {
       await refreshSearchOwnership()
       _ = try await UrbaneCloudSync.reconcileAcceptedShare(in: database)
     } catch LocalSearchCleanupError.localSearchContainsData {
-      message = "This device has local apartment data. It was kept on this device and was not merged into the shared search. The shared search is active; see People & identity for this notice."
+      message = "This device has local apartment data. It was kept on this device and wasn't merged into the shared search, which is now active."
     } catch {
       message = "Couldn’t finish setting up the shared search: \(error.localizedDescription)"
     }

@@ -55,14 +55,14 @@ final class UrbaneSceneDelegate: UIResponder, UIWindowSceneDelegate {
         try await UrbaneCloudSync.acceptShare(metadata)
         UrbaneCloudSync.setManuallyEnabled(true)
         _ = await UrbaneCloudSync.startIfManuallyEnabled()
+        // If the shared root hasn't arrived yet, MapHomeView reconciles when it does.
         for _ in 0..<40 {
           if try await UrbaneCloudSync.reconcileAcceptedShare(in: database) { return }
           try await Task.sleep(for: .milliseconds(250))
         }
-        UserDefaults.standard.set("The invitation was accepted. The shared search is still loading.", forKey: "urbane.shareAcceptanceMessage")
       } catch LocalSearchCleanupError.localSearchContainsData {
         UserDefaults.standard.set(
-          "This device has local apartment data. It was kept on this device and was not merged into the shared search. The shared search is active; this message remains in People & identity.",
+          "This device has local apartment data. It was kept on this device and wasn't merged into the shared search, which is now active.",
           forKey: "urbane.shareAcceptanceMessage"
         )
       } catch {

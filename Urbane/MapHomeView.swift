@@ -78,13 +78,16 @@ struct MapHomeView: View {
       }
       .overlay(alignment: .top) {
         if let message = model.message {
-          Text(message)
-            .font(.caption)
-            .multilineTextAlignment(.center)
-            .padding(10)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .padding()
-            .allowsHitTesting(false)
+          HStack(alignment: .top, spacing: 8) {
+            Text(message)
+              .font(.caption)
+            Button("Dismiss", systemImage: "xmark.circle.fill") { model.message = nil }
+              .labelStyle(.iconOnly)
+              .foregroundStyle(.secondary)
+          }
+          .padding(10)
+          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+          .padding()
         }
       }
       .toolbar {
