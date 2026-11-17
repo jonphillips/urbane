@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — Two opinions, on one device (`m1/s8a-opinions`)
+
+- **Result:** Seeded Jon and Wendy, added device-local identity, per-person building reactions, reasoned rejection status, and a rejected-building map filter.
+- **Verification:** scripts/check-drift.sh: SwiftLint clean, 68 UrbaneLibrary tests passed, and iOS build-for-testing passed.
+- **Owed:** M1 S8a's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-17 — M1 S7c — Rent tab guidance and transit directions (`m1/s7c-transit-directions`)
 
 - **Result:** Added 2 beds tab guidance when rental capture finds units but no two bedroom candidates, and made commute rows open transit directions in Maps.

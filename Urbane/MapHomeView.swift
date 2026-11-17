@@ -11,6 +11,8 @@ struct MapHomeView: View {
   @State private var showingBuilding = false
   @State private var showingImport = false
   @State private var showingRentCSVImporter = false
+  @State private var showingPeopleSettings = false
+  @State private var showingRejectedBuildings = false
   @State private var rentImportNotice: String?
   @State private var selectedBuilding: Building?
   @State private var selectedNeighborhood: Neighborhood?
@@ -39,7 +41,7 @@ struct MapHomeView: View {
           }
           .annotationTitles(.hidden)
         }
-        ForEach(buildings) { building in
+        ForEach(BuildingBrowse.visibleBuildings(buildings, showingRejected: showingRejectedBuildings)) { building in
           Annotation(building.name, coordinate: CLLocationCoordinate2D(latitude: building.latitude, longitude: building.longitude)) {
             Button { selectedBuilding = building } label: {
               Image(systemName: "building.2.fill")
@@ -88,7 +90,11 @@ struct MapHomeView: View {
           Button("Neighborhood", systemImage: "plus.viewfinder") { showingNeighborhood = true }
           Button("Building", systemImage: "building") { showingBuilding = true }
           Button("Import", systemImage: "sparkle.text.clipboard") { showingImport = true }
+          Menu("Filters", systemImage: "line.3.horizontal.decrease") {
+            Toggle("Show rejected", isOn: $showingRejectedBuildings)
+          }
           Menu("Settings", systemImage: "gearshape") {
+            Button("People & identity", systemImage: "person.2") { showingPeopleSettings = true }
             Button("Import neighborhood rents", systemImage: "tablecells") { showingRentCSVImporter = true }
           }
         }
@@ -96,6 +102,7 @@ struct MapHomeView: View {
       .sheet(isPresented: $showingNeighborhood) { AddNeighborhoodSheet(model: model) }
       .sheet(isPresented: $showingBuilding) { AddBuildingSheet(model: model) }
       .sheet(isPresented: $showingImport) { ChatImportSheet(model: model) }
+      .sheet(isPresented: $showingPeopleSettings) { PeopleSettingsSheet(model: model) }
       .fileImporter(isPresented: $showingRentCSVImporter, allowedContentTypes: [.commaSeparatedText]) { result in
         do {
           let url = try result.get()
@@ -158,6 +165,43 @@ struct MapHomeView: View {
     center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -73.96),
     span: MKCoordinateSpan(latitudeDelta: 0.13, longitudeDelta: 0.18)
   )
+}
+
+private struct PeopleSettingsSheet: View {
+  let model: UrbaneMapModel
+  @Environment(\.dismiss) private var dismiss
+  @AppStorage("urbane.thisIsMe") private var thisIsMe = ""
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section {
+          if model.people.isEmpty {
+            Text("People are being set up.").foregroundStyle(.secondary)
+          } else {
+            VStack(alignment: .leading, spacing: 6) {
+              Text("This is me")
+              Picker("This is me", selection: $thisIsMe) {
+                Text("Choose a person").tag("")
+                ForEach(model.people) { person in
+                  Text(person.displayName).tag(person.id.uuidString)
+                }
+              }
+              .labelsHidden()
+            }
+          }
+        } header: {
+          Text("People")
+        } footer: {
+          Text("This choice is saved on this device. Change it when the other person is rating buildings.")
+        }
+      }
+      .navigationTitle("People & identity")
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+      }
+    }
+  }
 }
 
 private struct AddNeighborhoodSheet: View {

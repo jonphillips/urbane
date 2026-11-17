@@ -102,3 +102,93 @@ func m1RecordsRoundTripThroughTheirTables() throws {
     #expect(savedBuildingReview == buildingReview)
   }
 }
+
+@Test
+func reactionUpsertUpdatesTheExistingBuildingPersonRow() throws {
+  let database = try DatabaseQueue()
+  try UrbaneDatabaseMigrations.makeMigrator().migrate(database)
+  let search = Search(id: UUID())
+  let person = Person(id: UUID(), searchID: search.id, displayName: "Jon")
+  let neighborhood = Neighborhood(id: UUID(), searchID: search.id, name: "Williamsburg")
+  let building = Building(id: UUID(), neighborhoodID: neighborhood.id, name: "The Oosten")
+  try database.write { db in
+    try Search.insert { search }.execute(db)
+    try Person.insert { person }.execute(db)
+    try Neighborhood.insert { neighborhood }.execute(db)
+    try Building.insert { building }.execute(db)
+    _ = try ReactionOperations.upsert(
+      buildingID: building.id, personID: person.id, id: UUID(), rating: 4,
+      isFavorite: true, note: "Good light", in: db
+    )
+  }
+  let original = try database.read { db in try Reaction.fetchAll(db).first }
+  #expect(original != nil)
+
+  _ = try database.write { db in
+    try ReactionOperations.upsert(
+      buildingID: building.id, personID: person.id, id: UUID(), rating: 5,
+      isFavorite: false, note: "Even better", in: db
+    )
+  }
+
+  let rows = try database.read { db in try Reaction.fetchAll(db) }
+  #expect(rows.count == 1)
+  #expect(rows.first?.id == original?.id)
+  #expect(rows.first?.rating == 5)
+  #expect(rows.first?.isFavorite == false)
+  #expect(rows.first?.note == "Even better")
+}
+
+@Test
+func rejectedStatusRequiresAReasonAndLeavingRejectedClearsIt() throws {
+  let database = try DatabaseQueue()
+  try UrbaneDatabaseMigrations.makeMigrator().migrate(database)
+  let search = Search(id: UUID())
+  let neighborhood = Neighborhood(id: UUID(), searchID: search.id)
+  let building = Building(id: UUID(), neighborhoodID: neighborhood.id)
+  try database.write { db in
+    try Search.insert { search }.execute(db)
+    try Neighborhood.insert { neighborhood }.execute(db)
+    try Building.insert { building }.execute(db)
+  }
+
+  #expect(throws: BuildingStatusError.rejectionReasonRequired) {
+    try database.write { db in
+      try BuildingStatusOperations.set(
+        buildingID: building.id, status: .rejected, rejectionReason: "  ", in: db
+      )
+    }
+  }
+  try database.write { db in
+    try BuildingStatusOperations.set(
+      buildingID: building.id, status: .rejected, rejectionReason: "Too noisy", in: db
+    )
+  }
+  try database.write { db in
+    try BuildingStatusOperations.set(
+      buildingID: building.id, status: .watching, rejectionReason: "ignored", in: db
+    )
+  }
+  let updated = try database.read { db in try Building.find(building.id).fetchOne(db) }
+  #expect(updated?.status == .watching)
+  #expect(updated?.rejectionReason == nil)
+}
+
+@Test
+func defaultPeopleAreSeededOnceForTheSearch() throws {
+  let database = try DatabaseQueue()
+  try UrbaneDatabaseMigrations.makeMigrator().migrate(database)
+  let search = Search(id: UUID())
+  try database.write { db in
+    try Search.insert { search }.execute(db)
+    try SearchPeopleOperations.seedDefaults(
+      searchID: search.id, jonID: UUID(), wendyID: UUID(), in: db
+    )
+    try SearchPeopleOperations.seedDefaults(
+      searchID: search.id, jonID: UUID(), wendyID: UUID(), in: db
+    )
+  }
+  let people = try database.read { db in try Person.fetchAll(db) }
+  #expect(Set(people.map(\.displayName)) == ["Jon", "Wendy"])
+  #expect(people.count == 2)
+}

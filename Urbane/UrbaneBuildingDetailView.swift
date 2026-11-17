@@ -77,6 +77,9 @@ struct BuildingDetailSheet: View {
           if !currentBuilding.summary.isEmpty { Text(currentBuilding.summary) }
         }
 
+        BuildingStatusSection(building: currentBuilding, model: model)
+        BuildingOpinionsSection(building: currentBuilding, people: model.people, reactions: model.reactions, model: model)
+
         BuildingRentSection(
           building: currentBuilding,
           model: model,
