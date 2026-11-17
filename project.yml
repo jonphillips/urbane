@@ -66,3 +66,4 @@ schemes:
         Urbane: all
     run:
       config: Debug
+      enableGPUValidationMode: disabled
