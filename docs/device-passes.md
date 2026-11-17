@@ -10,6 +10,7 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
 ## Owed now
 
 *(nothing yet)*
+- **M1 S6:** Check transit ETA calculation and refresh for a real building on iPad. ([M1](milestones/M1-browse.md))
 
 ## Held
 

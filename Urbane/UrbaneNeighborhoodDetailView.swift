@@ -1,4 +1,5 @@
 import MapKit
+import Charts
 import SQLiteData
 import SwiftUI
 import UrbaneCore
@@ -120,8 +121,23 @@ struct NeighborhoodDetailSheet: View {
         }
 
         Section("Rent band") {
-          Label("Dated rental listings will appear here.", systemImage: "calendar")
-            .foregroundStyle(.secondary)
+          let rents = model.neighborhoodRents.filter { $0.neighborhoodID == neighborhood.id }
+            .sorted { $0.month < $1.month }
+          if let latest = rents.last {
+            let isStale = NeighborhoodRentCSV.isOlderThanSixMonths(latest.month, relativeTo: model.currentDate)
+            Text(latest.median2BRRent, format: .currency(code: "USD").precision(.fractionLength(0)))
+              .font(.title3.weight(.semibold))
+              .opacity(isStale ? 0.58 : 1)
+            Text("\(NeighborhoodRentCSV.date(for: latest.month)?.formatted(.dateTime.month(.abbreviated).year()) ?? latest.month) · \(latest.sourceLabel)")
+              .font(.caption).foregroundStyle(.secondary)
+            NeighborhoodRentSparkline(rents: Array(rents.suffix(12)))
+              .frame(height: 54)
+              .opacity(isStale ? 0.58 : 1)
+              .accessibilityLabel("12 month two bedroom median asking rent trend")
+          } else {
+            Label("Import dated 2 bedroom asking rents from Settings.", systemImage: "calendar")
+              .foregroundStyle(.secondary)
+          }
         }
       }
       .navigationTitle(neighborhood.name)
@@ -157,5 +173,23 @@ struct NeighborhoodDetailSheet: View {
       latitudeSpan: latitudeSpan, longitudeSpan: longitudeSpan
     )
     error = nil
+  }
+}
+
+private struct NeighborhoodRentSparkline: View {
+  let rents: [NeighborhoodRent]
+
+  var body: some View {
+    Chart {
+      ForEach(Array(rents.enumerated()), id: \.element.id) { item in
+        LineMark(x: .value("Month", item.offset), y: .value("Rent", item.element.median2BRRent))
+          .foregroundStyle(.blue)
+        PointMark(x: .value("Month", item.offset), y: .value("Rent", item.element.median2BRRent))
+          .foregroundStyle(.blue)
+      }
+    }
+    .chartXAxis(.hidden)
+    .chartYAxis(.hidden)
+    .chartYScale(domain: .automatic(includesZero: false))
   }
 }

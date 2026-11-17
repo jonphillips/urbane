@@ -21,6 +21,30 @@ import UrbaneCore
     #expect(await clock.now() >= .seconds(60))
   }
 
+  @Test func placeSearchesAndTransitRequestsShareOneBudget() async throws {
+    let clock = PacerTestClock()
+    let pacer = PlaceSearchPacer(clock: await clock.client)
+    let starts = SearchStartLog()
+    for index in 0..<25 {
+      _ = try await pacer.search(query: "place \(index)", using: { _ in
+        await starts.append(await clock.now())
+        return []
+      })
+    }
+    for _ in 0..<25 {
+      _ = try await pacer.request {
+        await starts.append(await clock.now())
+        return 1
+      }
+    }
+    let times = await starts.values
+    #expect(times.count == 50)
+    #expect(times.allSatisfy { start in
+      times.filter { $0 >= start && $0 - start < .seconds(60) }.count <= 45
+    })
+    #expect(await clock.now() >= .seconds(60))
+  }
+
   @Test func concurrentCallersStillRunSearchesSequentially() async throws {
     let clock = PacerTestClock()
     let pacer = PlaceSearchPacer(clock: await clock.client)

@@ -37,6 +37,16 @@ public enum CommuteDestination: Int, QueryBindable, CaseIterable, Sendable {
   case lowerEastSide = 3
   case midtown = 4
 
+  public var displayName: String {
+    switch self {
+    case .soho: "Soho"
+    case .tribeca: "Tribeca"
+    case .westVillage: "West Village"
+    case .lowerEastSide: "Lower East Side"
+    case .midtown: "Midtown"
+    }
+  }
+
   /// Representative routing anchors at the centers of the named work destinations.
   public var coordinate: GeoCoordinate {
     switch self {

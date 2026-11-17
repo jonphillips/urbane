@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import LLMClientKit
 import Observation
 import SQLiteData
 import UrbaneCore
@@ -8,20 +9,35 @@ import UrbaneSchema
 @MainActor
 @Observable
 final class UrbaneMapModel {
-  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
-  @ObservationIgnored @Dependency(\.uuid) private var uuid
+  @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @Dependency(\.uuid) var uuid
   @ObservationIgnored @Dependency(\.placeSearch) private var placeSearch
-  @ObservationIgnored @Dependency(\.date.now) private var now
+  @ObservationIgnored @Dependency(\.date.now) var now
+  @ObservationIgnored @Dependency(\.commuteClient) var commuteClient
+  @ObservationIgnored @Dependency(\.modelClient) var modelClient
   @ObservationIgnored @FetchAll(Search.all) var searches
   @ObservationIgnored @FetchAll(Neighborhood.order(by: \.name)) var neighborhoods
   @ObservationIgnored @FetchAll(Building.order(by: \.name)) var buildings
   @ObservationIgnored @FetchAll(NeighborhoodVignette.all) var neighborhoodVignettes
   @ObservationIgnored @FetchAll(BuildingVignette.all) var buildingVignettes
   @ObservationIgnored @FetchAll(BuildingReview.all) var reviews
+  @ObservationIgnored @FetchAll(NeighborhoodRent.all) var neighborhoodRents
+  @ObservationIgnored @FetchAll(RentObservation.all) var rentObservations
+  @ObservationIgnored @FetchAll(Commute.all) var commutes
 
   private var didBootstrap = false
   var message: String?
   var placeSearchWaitingFor: Duration?
+  var rentImportMessage: String?
+  var rentImportError: String?
+  var commuteErrors: [UUID: String] = [:]
+  var commuteBuildingsInProgress: Set<UUID> = []
+  var currentDate: Date { now }
+
+  func isRentObservationStale(_ observation: RentObservation) -> Bool {
+    let cutoff = Calendar.current.date(byAdding: .month, value: -6, to: now) ?? now
+    return observation.dateSeen < cutoff
+  }
 
   func bootstrap() {
     guard !didBootstrap else { return }
@@ -32,6 +48,7 @@ final class UrbaneMapModel {
         try Search.insert { Search(id: uuid(), title: "Search") }.execute(db)
       }
     }
+    Task { await refreshMissingCommutes() }
   }
 
   func search(_ query: String) async throws -> [PlaceMatch] {
@@ -68,20 +85,22 @@ final class UrbaneMapModel {
     status: BuildingStatus = .exploring, rejectionReason: String? = nil,
     match: PlaceMatch, streetEasyURL: String? = nil, websiteURL: String? = nil
   ) {
+    let addedBuilding = Building(
+      id: uuid(), neighborhoodID: neighborhoodID, name: name,
+      address: address.isEmpty ? match.address : address,
+      latitude: match.latitude, longitude: match.longitude,
+      mapItemIdentifier: match.mapItemIdentifier,
+      summary: summary, status: status, rejectionReason: rejectionReason,
+      streetEasyURL: streetEasyURL, websiteURL: websiteURL
+    )
     withErrorReporting {
       try database.write { db in
         try Building.insert {
-          Building(
-            id: uuid(), neighborhoodID: neighborhoodID, name: name,
-            address: address.isEmpty ? match.address : address,
-            latitude: match.latitude, longitude: match.longitude,
-            mapItemIdentifier: match.mapItemIdentifier,
-            summary: summary, status: status, rejectionReason: rejectionReason,
-            streetEasyURL: streetEasyURL, websiteURL: websiteURL
-          )
+          addedBuilding
         }.execute(db)
       }
     }
+    Task { await refreshCommutes(for: addedBuilding, onlyMissing: true) }
   }
 
   func updateNeighborhoodChapter(_ neighborhood: Neighborhood, chapter: String) {
@@ -208,6 +227,7 @@ final class UrbaneMapModel {
     replaceReviews: Set<String>
   ) throws {
     guard let search = searches.first else { throw ChatImportError.invalidPaste("The Search row is not ready yet.") }
+    var importedBuildings: [Building] = []
     try database.write { db in
       var neighborhoods = try Neighborhood.fetchAll(db)
       var buildings = try Building.fetchAll(db)
@@ -272,7 +292,9 @@ final class UrbaneMapModel {
           try Building.insert {
             Building(id: buildingID, neighborhoodID: neighborhoodID, name: incoming.name, address: incoming.address, latitude: place.latitude, longitude: place.longitude, mapItemIdentifier: place.mapItemIdentifier, summary: incoming.summary, status: incoming.status, rejectionReason: incoming.rejectionReason, streetEasyURL: incoming.streetEasyURL, websiteURL: incoming.website)
           }.execute(db)
-          buildings.append(Building(id: buildingID, neighborhoodID: neighborhoodID, name: incoming.name, address: incoming.address, latitude: place.latitude, longitude: place.longitude, mapItemIdentifier: place.mapItemIdentifier, summary: incoming.summary, status: incoming.status, rejectionReason: incoming.rejectionReason, streetEasyURL: incoming.streetEasyURL, websiteURL: incoming.website))
+          let inserted = Building(id: buildingID, neighborhoodID: neighborhoodID, name: incoming.name, address: incoming.address, latitude: place.latitude, longitude: place.longitude, mapItemIdentifier: place.mapItemIdentifier, summary: incoming.summary, status: incoming.status, rejectionReason: incoming.rejectionReason, streetEasyURL: incoming.streetEasyURL, websiteURL: incoming.website)
+          buildings.append(inserted)
+          importedBuildings.append(inserted)
         }
         for (rIndex, review) in incoming.reviews.enumerated() {
           let subject: BuildingReviewSubject = review.subject == .building ? .building : .landlord
@@ -295,6 +317,8 @@ final class UrbaneMapModel {
         }
       }
     }
+    let buildingsToCheck = buildings + importedBuildings
+    Task { await refreshMissingCommutes(for: buildingsToCheck) }
   }
   // swiftlint:enable function_body_length
 

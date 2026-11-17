@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — Rent numbers, commutes, and StreetEasy capture (`m1/s6-rent-numbers`)
+
+- **Result:** Added StreetEasy's two-bedroom rent import and 12-month sparkline; reduced listing pages for on-device extraction with confirmation, dated rent bands, and stored transit commutes on a paced MapKit budget with background fill. Added validated building link editing.
+- **Verification:** SwiftLint, all 59 UrbaneLibrary tests, and iOS build-for-testing passed.
+- **Owed:** M1 S6's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-16 — M1 · S4 + S5 device pass
 
 - **Result:** Passed on Jon's iPad, under the gate as amended by #13 (Look Around views aren't adjustable). The Ashland's default facade still faced its front door ("250"), and the full-screen 3D map and Look Around viewer both work. Jon merged #12 after the pass.

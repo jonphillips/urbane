@@ -28,12 +28,19 @@ struct BuildingDetailSheet: View {
   @State private var fixingLocation = false
   @State private var showingMapViewer = false
   @State private var showingHeroViewer = false
+  @State private var editingLinks = false
   @State private var fullScreenHero: UIImage?
 
   private let imageryClient = UrbaneImageryClient()
 
   private var currentBuilding: Building {
     model.buildings.first { $0.id == building.id } ?? building
+  }
+
+  private var buildingWebsiteURL: URL? {
+    guard let value = currentBuilding.websiteURL,
+          let validated = try? BuildingLinkValidator.validate(value, for: .website) else { return nil }
+    return URL(string: validated)
   }
 
   private var imageRecipe: String {
@@ -59,10 +66,8 @@ struct BuildingDetailSheet: View {
           if !currentBuilding.summary.isEmpty { Text(currentBuilding.summary) }
         }
 
-        Section("Rent band") {
-          Label("Dated rental listings will appear here.", systemImage: "calendar")
-            .foregroundStyle(.secondary)
-        }
+        BuildingRentSection(building: currentBuilding, model: model)
+        BuildingCommuteSection(building: currentBuilding, model: model)
 
         Section("What renters say") {
           let reviews = model.reviews.filter { $0.buildingID == building.id }.sorted { $0.gatheredAt > $1.gatheredAt }
@@ -128,10 +133,11 @@ struct BuildingDetailSheet: View {
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Menu {
-          Button("Choose hero image", systemImage: "photo") { openHeroBrowser() }
-            .disabled(currentBuilding.websiteURL.flatMap(URL.init(string:)) == nil)
-          Button("Open building website", systemImage: "safari") { openBuildingSite() }
-            .disabled(currentBuilding.websiteURL.flatMap(URL.init(string:)) == nil)
+          Button(buildingWebsiteURL == nil ? "Choose hero image — Add a website in Edit links" : "Choose hero image", systemImage: "photo") { openHeroBrowser() }
+            .disabled(buildingWebsiteURL == nil)
+          Button(buildingWebsiteURL == nil ? "Open building website — Add a website in Edit links" : "Open building website", systemImage: "safari") { openBuildingSite() }
+            .disabled(buildingWebsiteURL == nil)
+          Button("Edit links", systemImage: "link") { editingLinks = true }
         } label: { Image(systemName: "ellipsis") }
       }
     }
@@ -170,6 +176,7 @@ struct BuildingDetailSheet: View {
       BuildingVignetteEditor(building: currentBuilding, model: model, vignette: vignette)
     }
     .sheet(isPresented: $fixingLocation) { BuildingLocationSheet(building: currentBuilding, model: model) }
+    .sheet(isPresented: $editingLinks) { BuildingLinksEditor(building: currentBuilding, model: model) }
     .sheet(isPresented: $showingImagePicker) {
       NavigationStack {
         ScrollView {
@@ -274,13 +281,13 @@ struct BuildingDetailSheet: View {
   }
 
   private func openHeroBrowser() {
-    guard let url = currentBuilding.websiteURL.flatMap(URL.init(string:)) else { return }
+    guard let url = buildingWebsiteURL else { return }
     browserDestination = BrowserDestination(url: url, title: "Choose hero image")
     showingBrowser = true
   }
 
   private func openBuildingSite() {
-    guard let url = currentBuilding.websiteURL.flatMap(URL.init(string:)) else { return }
+    guard let url = buildingWebsiteURL else { return }
     selectedReviewURL = BrowserDestination(url: url, title: currentBuilding.name)
   }
 
