@@ -206,6 +206,56 @@ Jon's iPad pass on 2026-11-17: rent capture and the subway markers work. Two sma
 passes. Device gate: on 420 Kent's building page, the Studio tab shows the new message; tapping
 a commute row opens Apple Maps with transit directions from the building to that destination.
 
+### S7d — Read StreetEasy's unit cards without the model
+
+Jon's iPad pass on 2026-11-17: on 420 Kent's **2 beds** tab, Extract rents offers #802 and #560 but
+never #1009, the first card, on every try. Jon saved the page as
+`~/code/jon-platform/kent-for-missing.html`. On this Mac, the reducer keeps all three cards (3,310
+characters, nothing truncated), and the on-device model, sent the app's exact request, returned all
+three on four runs out of four. So the input is fine, and something on the iPad's side drops the
+first card. Rather than chase the model, read the cards in code.
+
+The reduced text of a StreetEasy building page lists each unit in a regular shape. The two layouts
+we have:
+
+- The iPad's (this page): `#1009 $7,105 base rent Base rent doesn't include any fees. … Available:
+  Now 1 of 39 2 beds 2 baths - ft² Listing by Corcoran #802 $7,282 base rent …`
+- The desktop's (`streeteasy-420-kent-avenue-building.html`): `#560 - 420 Kent Avenue $7,482 base
+  rent 2 beds 0 ft² $7,482 base rent 5 rooms, 2 beds 2 baths 0 ft² #802 - 420 Kent Avenue …`. Each
+  unit appears twice, and studios say `studio`.
+
+The listing page (`#560 $7,482 for rent …`) has no `base rent` and isn't a unit list.
+
+- **A card parser in `UrbaneCore`.** It reads the reducer's output, not HTML. A card starts at `#`
+  followed by a unit token (letters, digits, `-`), then optionally ` - ` and an address with no `$`
+  or `#`, then `$` and a rent with commas, then `base rent`. The card runs until the next card start,
+  but for no more than 400 characters, so the page's footer can't lend a card its bedrooms. Its
+  bedrooms are the first `N bed` or `N beds` (whole word, so `bedrooms` doesn't match), or `studio`
+  for 0, inside the card. A card with no bedrooms is dropped. Cards with the same unit and rent count
+  once.
+- **Parser first, model only as a fallback.** `RentListingExtractor.extract` reduces the page, then
+  runs the parser. If it finds at least one card, that's the answer, and the model is not called. If
+  it finds none, the model request goes out exactly as today. Either way, the result is the same
+  `RentListingExtraction`, with `unitsFound` counting the cards, and the same 2-bedroom filter and
+  unit normalization. The messages, the review sheet and "Copy page text" don't change.
+- **The new fixture.** Copy `~/code/jon-platform/kent-for-missing.html` to
+  `UrbaneLibrary/Tests/UrbaneCoreTests/Fixtures/streeteasy-420-kent-avenue-2-beds-tab.html`
+  unchanged, and note where it came from in the test, as the other fixtures do.
+
+**Done when:** tests cover these cases:
+
+- The new fixture gives exactly #1009 $7,105, #802 $7,282 and #560 $7,482 (`unitsFound` 3), with a
+  stub model client that fails the test if it's called.
+- The desktop building fixture gives 12 units, with #560, #802 and #1009 as the only candidates. Its
+  repeated rows count once.
+- The listing fixture finds no cards and falls back to the model.
+- A Studio-tab text, a few `studio` cards and no 2-bedroom ones, gives the "Found N units… tap 2
+  beds" message.
+- A card whose bedrooms appear only after its 400 characters is dropped.
+
+**Device gate:** on 420 Kent's **2 beds** tab, Extract rents offers #1009, #802 and #560. On the
+Studio tab, it still says to tap 2 beds.
+
 ### S8a — Two opinions, on one device
 
 The opinion half of the old S8, with sync still off. It needs no schema change: `people` and `reactions`
@@ -285,6 +335,8 @@ the building has at least one Tuesday stop.
 - **Dispatch 5b:** S7b, fixes from the S6 and S7 device pass (Jon, 2026-11-17), ahead of sharing.
 - **Dispatch 5c:** S7c, two touches from the S7b pass (Jon, 2026-11-17), ahead of sharing.
 - **Dispatch 6:** S8a, opinions on one device.
+- **Dispatch 6a:** S7d, reading StreetEasy's unit cards in code, from the S7c and S8a pass (Jon,
+  2026-11-17), ahead of sharing.
 - **Dispatch 6b:** S8b, alone (sync, sharing, Production). Split from the old S8 on 2026-11-17 so the opinion
   work could start while the cutover plan is reviewed.
 - **Dispatch 7:** S9.
@@ -300,6 +352,7 @@ the building has at least one Tuesday stop.
 - [x] S7 — The subway on the map
 - [x] S7b — Fixes from the S6 and S7 device pass
 - [x] S7c — Two touches from the S7b pass
+- [ ] S7d — Read StreetEasy's unit cards without the model
 - [x] S8a — Two opinions, on one device
 - [ ] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"

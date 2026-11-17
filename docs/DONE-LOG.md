@@ -3,6 +3,13 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — M1 · S7c and S8a device pass
+
+- **Result:** Passed on Jon's iPad. Commute rows open transit directions in Maps, and Jon and Wendy
+  each left a reaction on one device and saw both. Capture on 420 Kent still needs the **2 beds** tab
+  selected (expected), and on that tab it offers #802 and #560 but never #1009, the first card. The
+  page and the model both read all three on the Mac, so S7d reads the unit cards in code.
+
 ## 2026-11-17 — Two opinions, on one device (`m1/s8a-opinions`)
 
 - **Result:** Seeded Jon and Wendy, added device-local identity, per-person building reactions, reasoned rejection status, and a rejected-building map filter.
