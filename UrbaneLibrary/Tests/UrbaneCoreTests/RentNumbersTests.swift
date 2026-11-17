@@ -137,14 +137,74 @@ private actor ModelRequestCapture {
   }
 
   @Test func realBuildingFixtureRetainsListingRentsAndFitsModelBudget() async throws {
-    let (html, url) = try loadFixture("streeteasy-420-kent-avenue-building")
+    let (html, _) = try loadFixture("streeteasy-420-kent-avenue-building")
     let reduced = StreetEasyPageReducer.reduce(html)
     for expected in ["#560", "$7,482", "#802", "$7,282", "#1009", "$7,105"] {
       #expect(reduced.contains(expected))
     }
     #expect(reduced.count <= RentListingExtractor.maximumInputCharacters)
-    let request = try await captureRequest(from: html, sourceURL: url)
-    assertReducedTextWasSent(request, reduced: reduced)
+  }
+
+  @Test func iPadTwoBedsTabFixtureUsesUnitCardsWithoutCallingTheModel() async throws {
+    // Source: ~/code/jon-platform/kent-for-missing.html, saved from 420 Kent's 2 beds tab on 2026-11-17.
+    let (html, url) = try loadFixture("streeteasy-420-kent-avenue-2-beds-tab")
+    let extraction = try await RentListingExtractor.extract(
+      from: html,
+      sourceURL: url,
+      using: StubModelClient { _ in
+        Issue.record("The model should not be called when StreetEasy unit cards are readable")
+        return ModelResponse(text: #"{"listings":[]}"#)
+      }
+    )
+    #expect(extraction == RentListingExtraction(
+      unitsFound: 3,
+      candidates: [
+        RentListingCandidate(rent: 7_105, unit: "1009"),
+        RentListingCandidate(rent: 7_282, unit: "802"),
+        RentListingCandidate(rent: 7_482, unit: "560"),
+      ]
+    ))
+  }
+
+  @Test func desktopBuildingFixtureDeduplicatesRepeatedUnitCards() throws {
+    let (html, _) = try loadFixture("streeteasy-420-kent-avenue-building")
+    let extraction = try #require(RentListingExtractor.parseCards(StreetEasyPageReducer.reduce(html)))
+    #expect(extraction.unitsFound == 12)
+    #expect(extraction.candidates == [
+      RentListingCandidate(rent: 7_482, unit: "560"),
+      RentListingCandidate(rent: 7_282, unit: "802"),
+      RentListingCandidate(rent: 7_105, unit: "1009"),
+    ])
+  }
+
+  @Test func listingFixtureFallsBackToTheModel() async throws {
+    let (html, url) = try loadFixture("streeteasy-420-kent-avenue-560-listing")
+    let extraction = try await withDependencies {
+      $0.modelClient = StubModelClient { request in
+        #expect(request.tier == .onDevice)
+        return ModelResponse(text: ##"{"listings":[{"bedrooms":2,"rent":7482,"unit":"#560"}]}"##)
+      }
+    } operation: {
+      @Dependency(\.modelClient) var modelClient
+      return try await RentListingExtractor.extract(from: html, sourceURL: url, using: modelClient)
+    }
+    #expect(extraction == RentListingExtraction(
+      unitsFound: 1,
+      candidates: [RentListingCandidate(rent: 7_482, unit: "560")]
+    ))
+  }
+
+  @Test func studioCardsCountAsUnitsAndRecommendTheTwoBedsTab() throws {
+    let text = "#1 $2,000 base rent studio #2 $2,200 base rent Studio #3 $3,000 base rent 1 bed"
+    let extraction = try #require(RentListingExtractor.parseCards(text))
+    #expect(extraction.unitsFound == 3)
+    #expect(extraction.candidates.isEmpty)
+    #expect(extraction.noCandidatesMessage == "Found 3 units on this page, none with 2 bedrooms. If the page has a 2 beds tab, tap it, then Extract rents again.")
+  }
+
+  @Test func cardBedroomTextBeyondFourHundredCharactersIsIgnored() {
+    let text = "#1 $2,000 base rent " + String(repeating: "details ", count: 60) + "2 beds"
+    #expect(RentListingExtractor.parseCards(text) == nil)
   }
 
   @Test func realListingFixtureRetainsTargetListingAndOmitsSimilarHomes() async throws {

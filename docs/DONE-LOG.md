@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — M1 · S7d — Read StreetEasy unit cards without the model (`m1/s7d-streeteasy-unit-cards`)
+
+- **Result:** Added bounded StreetEasy unit-card parsing before model fallback, with deduplication and bedroom detection from the reduced page text.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint (0 violations), 69 UrbaneLibrary tests, dependency resolution, iOS build-for-testing, and check-handoff.
+- **Owed:** M1 S7d's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-17 — M1 · S7c and S8a device pass
 
 - **Result:** Passed on Jon's iPad. Commute rows open transit directions in Maps, and Jon and Wendy

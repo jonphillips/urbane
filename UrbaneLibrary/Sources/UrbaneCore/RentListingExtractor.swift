@@ -32,6 +32,9 @@ public struct RentListingExtraction: Equatable, Sendable {
 
 public enum RentListingExtractor {
   public static let maximumInputCharacters = 10_000
+  private static let cardHeaderPattern = #"#([A-Za-z0-9-]+)(?: - [^$#]*)?\s+\$([0-9,]+)\s+base rent\b"#
+  private static let unitTokenPattern = #"#([A-Za-z0-9-]+)(?=\s|$)"#
+  private static let bedroomPattern = #"\b(\d+)\s+beds?\b|\bstudio\b"#
   public static let instructions = """
     You read the visible text of a StreetEasy rental page. List every rental unit the page
     currently offers: its unit number (as written after #), its base rent, and its bedrooms from
@@ -81,6 +84,7 @@ public enum RentListingExtractor {
     from html: String, sourceURL: URL, using modelClient: any ModelClient
   ) async throws -> RentListingExtraction {
     let visibleText = StreetEasyPageReducer.reduce(html)
+    if let extraction = parseCards(visibleText) { return extraction }
     let request = ModelRequest(
       tier: .onDevice,
       system: instructions,
@@ -90,6 +94,56 @@ public enum RentListingExtractor {
     )
     let response = try await modelClient.complete(request)
     return try parse(response.text)
+  }
+
+  /// Reads the regular unit-card text exposed by StreetEasy's building page reducer.
+  /// Returns nil when the page does not contain a card, allowing the model fallback to run.
+  public static func parseCards(_ text: String) -> RentListingExtraction? {
+    guard let headerRegex = try? NSRegularExpression(pattern: cardHeaderPattern, options: [.caseInsensitive]),
+          let unitRegex = try? NSRegularExpression(pattern: unitTokenPattern),
+          let bedroomRegex = try? NSRegularExpression(pattern: bedroomPattern, options: [.caseInsensitive]) else {
+      return nil
+    }
+    let textRange = NSRange(text.startIndex..., in: text)
+    let headers = headerRegex.matches(in: text, range: textRange)
+    guard !headers.isEmpty else { return nil }
+    let unitStarts = unitRegex.matches(in: text, range: textRange).map(\.range.location)
+    let source = text as NSString
+    var cards: [(unit: String, rent: Int, bedrooms: Int)] = []
+    var seen = Set<String>()
+
+    for (index, header) in headers.enumerated() {
+      guard let unitRange = Range(header.range(at: 1), in: text),
+            let rentRange = Range(header.range(at: 2), in: text),
+            let rent = Int(String(text[rentRange]).replacingOccurrences(of: ",", with: "")) else { continue }
+      let nextCardStart = unitStarts.first(where: { $0 > header.range.location }) ?? textRange.length
+      let nextHeaderStart = index + 1 < headers.count ? headers[index + 1].range.location : textRange.length
+      let cardEnd = min(min(nextCardStart, nextHeaderStart), header.range.location + 400)
+      guard cardEnd > header.range.location else { continue }
+      let cardRange = NSRange(location: header.range.location, length: cardEnd - header.range.location)
+      let cardText = source.substring(with: cardRange)
+      let bedroomMatches = bedroomRegex.matches(in: cardText, range: NSRange(cardText.startIndex..., in: cardText))
+      guard let bedroomMatch = bedroomMatches.first else { continue }
+      let bedrooms: Int
+      if bedroomMatch.range(at: 1).location == NSNotFound {
+        bedrooms = 0
+      } else if let bedroomRange = Range(bedroomMatch.range(at: 1), in: cardText), let value = Int(cardText[bedroomRange]) {
+        bedrooms = value
+      } else {
+        continue
+      }
+      let unit = String(text[unitRange])
+      let identity = "\(unit)|\(rent)"
+      guard seen.insert(identity).inserted else { continue }
+      cards.append((unit, rent, bedrooms))
+    }
+
+    guard !cards.isEmpty else { return nil }
+    let candidates = cards.compactMap { card -> RentListingCandidate? in
+      guard card.bedrooms == 2, card.rent > 0 else { return nil }
+      return RentListingCandidate(rent: card.rent, unit: card.unit)
+    }
+    return RentListingExtraction(unitsFound: cards.count, candidates: candidates)
   }
 
   /// Model output is only a candidate list; each candidate needs user confirmation before saving.
