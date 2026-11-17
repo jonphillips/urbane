@@ -23,6 +23,10 @@ struct BuildingDetailSheet: View {
   @State private var imageCandidates: [URL] = []
   @State private var imageError: String?
   @State private var selectedReviewURL: BrowserDestination?
+  @State private var showingRentBrowser = false
+  @State private var pendingRentReview: RentReviewContext?
+  @State private var rentReview: RentReviewContext?
+  @State private var rentCaptureError: String?
   @State private var editingVignette: BuildingVignette?
   @State private var addingVignette = false
   @State private var fixingLocation = false
@@ -40,6 +44,12 @@ struct BuildingDetailSheet: View {
   private var buildingWebsiteURL: URL? {
     guard let value = currentBuilding.websiteURL,
           let validated = try? BuildingLinkValidator.validate(value, for: .website) else { return nil }
+    return URL(string: validated)
+  }
+
+  private var streetEasyPageURL: URL? {
+    guard let value = currentBuilding.streetEasyURL,
+          let validated = try? BuildingLinkValidator.validate(value, for: .streetEasy) else { return nil }
     return URL(string: validated)
   }
 
@@ -66,7 +76,16 @@ struct BuildingDetailSheet: View {
           if !currentBuilding.summary.isEmpty { Text(currentBuilding.summary) }
         }
 
-        BuildingRentSection(building: currentBuilding, model: model)
+        BuildingRentSection(
+          building: currentBuilding,
+          model: model,
+          onCapture: {
+            pendingRentReview = nil
+            rentCaptureError = nil
+            showingRentBrowser = true
+          },
+          captureError: rentCaptureError
+        )
         BuildingCommuteSection(building: currentBuilding, model: model)
         BuildingSubwaySection(
           building: currentBuilding,
@@ -160,7 +179,7 @@ struct BuildingDetailSheet: View {
         WebExtractorBrowser(
           startURL: browserDestination.url, title: browserDestination.title, confirmLabel: "Choose image"
         ) { html, pageURL in
-          imageCandidates = Self.imageURLs(in: html, baseURL: pageURL ?? browserDestination.url)
+          imageCandidates = BuildingDetailImages.imageURLs(in: html, baseURL: pageURL ?? browserDestination.url)
           guard !imageCandidates.isEmpty else {
             return .notFound(message: "No page images found yet. Navigate to a page with the building photos and try again.")
           }
@@ -181,6 +200,28 @@ struct BuildingDetailSheet: View {
     }
     .sheet(isPresented: $fixingLocation) { BuildingLocationSheet(building: currentBuilding, model: model) }
     .sheet(isPresented: $editingLinks) { BuildingLinksEditor(building: currentBuilding, model: model) }
+    .sheet(isPresented: $showingRentBrowser, onDismiss: presentPendingRentReview) {
+      if let url = streetEasyPageURL {
+        WebExtractorBrowser(startURL: url, title: "Capture rents", confirmLabel: "Extract rents") { html, pageURL in
+          let sourceURL = pageURL ?? url
+          do {
+            let candidates = try await model.extractRentCandidates(from: html, sourceURL: sourceURL)
+            guard !candidates.isEmpty else {
+              return .notFound(message: "No 2 bedroom rental candidates were found. Try the listing page and confirm it has loaded.")
+            }
+            pendingRentReview = RentReviewContext(
+              building: currentBuilding, candidates: candidates, sourceURL: sourceURL
+            )
+            rentCaptureError = nil
+            return .extracted
+          } catch {
+            rentCaptureError = error.localizedDescription
+            return .notFound(message: "Rent extraction failed: \(error.localizedDescription)")
+          }
+        }
+      }
+    }
+    .sheet(item: $rentReview) { context in RentReviewSheet(context: context, model: model) }
     .sheet(isPresented: $showingImagePicker) {
       NavigationStack {
         ScrollView {
@@ -295,12 +336,17 @@ struct BuildingDetailSheet: View {
     selectedReviewURL = BrowserDestination(url: url, title: currentBuilding.name)
   }
 
+  private func presentPendingRentReview() {
+    rentReview = pendingRentReview
+    pendingRentReview = nil
+  }
+
   private func saveHeroImage(from url: URL) async {
     imageCandidates = []
     do {
       let (data, response) = try await URLSession.shared.data(from: url)
       guard ((response as? HTTPURLResponse)?.statusCode ?? 200) < 400,
-            let image = UIImage(data: data), let resized = Self.downscaled(image, maxEdge: 1600),
+            let image = UIImage(data: data), let resized = BuildingDetailImages.downscaled(image, maxEdge: 1600),
             let jpeg = resized.jpegData(compressionQuality: 0.86) else {
         imageError = "That page image could not be saved. Try another one."
         return
@@ -313,7 +359,10 @@ struct BuildingDetailSheet: View {
     (Calendar.current.dateComponents([.month], from: date, to: .now).month ?? 0) > 6
   }
 
-  private static func downscaled(_ image: UIImage, maxEdge: CGFloat) -> UIImage? {
+}
+
+private enum BuildingDetailImages {
+  static func downscaled(_ image: UIImage, maxEdge: CGFloat) -> UIImage? {
     let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
     let downscale = min(1, maxEdge / max(pixelSize.width, pixelSize.height))
     let renderSize = CGSize(width: pixelSize.width * downscale, height: pixelSize.height * downscale)
@@ -324,7 +373,7 @@ struct BuildingDetailSheet: View {
     }
   }
 
-  private static func imageURLs(in html: String, baseURL: URL) -> [URL] {
+  static func imageURLs(in html: String, baseURL: URL) -> [URL] {
     let patterns = [
       #"<meta[^>]+(?:property|name)=[\"'](?:og:image|twitter:image)[\"'][^>]+content=[\"']([^\"']+)[\"']"#,
       #"<img[^>]+src=[\"']([^\"']+)[\"']"#,
@@ -342,7 +391,6 @@ struct BuildingDetailSheet: View {
     }
     return urls
   }
-
 }
 
 struct GalleryImage: View {
