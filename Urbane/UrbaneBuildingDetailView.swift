@@ -35,6 +35,8 @@ struct BuildingDetailSheet: View {
   @State private var showingHeroViewer = false
   @State private var editingLinks = false
   @State private var fullScreenHero: UIImage?
+  @State private var showingRejectionReason = false
+  @State private var rejectionReasonDraft = ""
 
   private let imageryClient = UrbaneImageryClient()
 
@@ -76,6 +78,12 @@ struct BuildingDetailSheet: View {
           }
           if !currentBuilding.summary.isEmpty { Text(currentBuilding.summary) }
         }
+
+        BuildingStatusSection(building: currentBuilding, model: model) {
+          rejectionReasonDraft = currentBuilding.rejectionReason ?? ""
+          showingRejectionReason = true
+        }
+        BuildingOpinionsSection(building: currentBuilding, people: model.people, reactions: model.reactions, model: model)
 
         BuildingRentSection(
           building: currentBuilding,
@@ -203,6 +211,16 @@ struct BuildingDetailSheet: View {
     }
     .sheet(isPresented: $fixingLocation) { BuildingLocationSheet(building: currentBuilding, model: model) }
     .sheet(isPresented: $editingLinks) { BuildingLinksEditor(building: currentBuilding, model: model) }
+    .sheet(isPresented: $showingRejectionReason) {
+      RejectionReasonEditor(
+        reasonDraft: $rejectionReasonDraft,
+        onCancel: { showingRejectionReason = false },
+        onSave: {
+          model.updateBuildingStatus(currentBuilding, status: .rejected, rejectionReason: rejectionReasonDraft)
+          showingRejectionReason = false
+        }
+      )
+    }
     .sheet(isPresented: $showingRentBrowser, onDismiss: presentPendingRentReview) {
       if let url = streetEasyPageURL {
         WebExtractorBrowser(startURL: url, title: "Capture rents", confirmLabel: "Extract rents") { html, pageURL in

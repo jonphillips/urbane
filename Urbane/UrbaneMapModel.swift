@@ -17,6 +17,8 @@ final class UrbaneMapModel {
   @ObservationIgnored @Dependency(\.transitDirectionsClient) var transitDirectionsClient
   @ObservationIgnored @Dependency(\.modelClient) var modelClient
   @ObservationIgnored @FetchAll(Search.all) var searches
+  @ObservationIgnored @FetchAll(Person.order(by: \.displayName)) var people
+  @ObservationIgnored @FetchAll(Reaction.all) var reactions
   @ObservationIgnored @FetchAll(Neighborhood.order(by: \.name)) var neighborhoods
   @ObservationIgnored @FetchAll(Building.order(by: \.name)) var buildings
   @ObservationIgnored @FetchAll(NeighborhoodVignette.all) var neighborhoodVignettes
@@ -49,8 +51,17 @@ final class UrbaneMapModel {
     didBootstrap = true
     withErrorReporting {
       try database.write { db in
-        guard try Search.fetchAll(db).isEmpty else { return }
-        try Search.insert { Search(id: uuid(), title: "Search") }.execute(db)
+        var searches = try Search.fetchAll(db)
+        if searches.isEmpty {
+          let search = Search(id: uuid(), title: "Search")
+          try Search.insert { search }.execute(db)
+          searches.append(search)
+        }
+        if let search = searches.first {
+          try SearchPeopleOperations.seedDefaults(
+            searchID: search.id, jonID: uuid(), wendyID: uuid(), in: db
+          )
+        }
       }
     }
     Task { await refreshMissingCommutes() }
@@ -218,6 +229,29 @@ final class UrbaneMapModel {
           $0.mapItemIdentifier = #bind(match.mapItemIdentifier)
           if !match.address.isEmpty { $0.address = #bind(match.address) }
         }.execute(db)
+      }
+    }
+  }
+
+  func updateBuildingStatus(_ building: Building, status: BuildingStatus, rejectionReason: String) {
+    withErrorReporting {
+      try database.write { db in
+        try BuildingStatusOperations.set(
+          buildingID: building.id, status: status, rejectionReason: rejectionReason, in: db
+        )
+      }
+    }
+  }
+
+  func upsertReaction(
+    buildingID: UUID, personID: UUID, rating: Int?, isFavorite: Bool, note: String
+  ) {
+    withErrorReporting {
+      try database.write { db in
+        _ = try ReactionOperations.upsert(
+          buildingID: buildingID, personID: personID, id: uuid(), rating: rating,
+          isFavorite: isFavorite, note: note, in: db
+        )
       }
     }
   }
