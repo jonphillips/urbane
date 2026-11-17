@@ -25,7 +25,6 @@ struct BuildingDetailSheet: View {
   @State private var selectedReviewURL: BrowserDestination?
   @State private var editingVignette: BuildingVignette?
   @State private var addingVignette = false
-  @State private var addingFacade = false
   @State private var fixingLocation = false
   @State private var showingMapViewer = false
   @State private var showingHeroViewer = false
@@ -39,14 +38,6 @@ struct BuildingDetailSheet: View {
 
   private var imageRecipe: String {
     "\(currentBuilding.latitude)|\(currentBuilding.longitude)|\(currentBuilding.mapItemIdentifier ?? "coordinate")"
-  }
-
-  private var selectedVignette: BuildingVignette? {
-    model.buildingVignettes.first { $0.id.uuidString == selectedGalleryPage && $0.buildingID == building.id }
-  }
-
-  private var canAdjustCurrentPage: Bool {
-    selectedGalleryPage == "facade" || selectedVignette != nil
   }
 
   var body: some View {
@@ -175,11 +166,6 @@ struct BuildingDetailSheet: View {
         selectedGalleryPage = id.uuidString
       }
     }
-    .sheet(isPresented: $addingFacade) {
-      BuildingVignetteEditor(building: currentBuilding, model: model, vignette: nil, initialCaption: "Facade") { id in
-        selectedGalleryPage = id.uuidString
-      }
-    }
     .sheet(item: $editingVignette) { vignette in
       BuildingVignetteEditor(building: currentBuilding, model: model, vignette: vignette)
     }
@@ -262,20 +248,9 @@ struct BuildingDetailSheet: View {
       .tabViewStyle(.page(indexDisplayMode: .automatic))
       .frame(maxWidth: .infinity)
       .containerRelativeFrame(.vertical) { length, _ in length * 0.55 }
-      Button("Adjust view", systemImage: "viewfinder", action: adjustCurrentPage)
-        .buttonStyle(.bordered)
-        .disabled(!canAdjustCurrentPage)
     }
     .padding(.horizontal, 20)
     .padding(.vertical, 12)
-  }
-
-  private func adjustCurrentPage() {
-    if selectedGalleryPage == "facade" {
-      addingFacade = true
-    } else if let selectedVignette {
-      editingVignette = selectedVignette
-    }
   }
 
   private var statusLabel: String {

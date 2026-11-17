@@ -17,30 +17,24 @@ struct BuildingVignetteEditor: View {
   @State private var error: String?
   @State private var scene: MKLookAroundScene?
   @State private var snapshot: UIImage?
-  @State private var camera: MapCameraPosition
   private let imageryClient = UrbaneImageryClient()
 
   init(
     building: Building, model: UrbaneMapModel, vignette: BuildingVignette?,
-    initialCaption: String = "", onSave: @escaping (UUID) -> Void = { _ in }
+    onSave: @escaping (UUID) -> Void = { _ in }
   ) {
     self.building = building
     self.model = model
     self.vignette = vignette
     self.onSave = onSave
-    _query = State(initialValue: vignette?.placeName ?? building.address)
-    _caption = State(initialValue: vignette?.caption ?? initialCaption)
-    _selected = State(initialValue: PlaceMatch(
-      name: vignette?.placeName ?? building.name,
-      address: vignette?.placeName ?? building.address,
-      latitude: vignette?.latitude ?? building.latitude,
-      longitude: vignette?.longitude ?? building.longitude,
-      mapItemIdentifier: vignette == nil ? building.mapItemIdentifier : vignette?.mapItemIdentifier
-    ))
-    _camera = State(initialValue: .region(MKCoordinateRegion(
-      center: CLLocationCoordinate2D(latitude: vignette?.latitude ?? building.latitude, longitude: vignette?.longitude ?? building.longitude),
-      span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
-    )))
+    _query = State(initialValue: vignette?.placeName ?? "")
+    _caption = State(initialValue: vignette?.caption ?? "")
+    _selected = State(initialValue: vignette.map {
+      PlaceMatch(
+        name: $0.placeName, address: $0.placeName,
+        latitude: $0.latitude, longitude: $0.longitude, mapItemIdentifier: $0.mapItemIdentifier
+      )
+    })
   }
 
   var body: some View {
@@ -56,38 +50,25 @@ struct BuildingVignetteEditor: View {
             Label("\(place.name) · \(place.address)", systemImage: selected?.id == place.id ? "checkmark.circle.fill" : "mappin")
           }
         }
-        Section("Look Around view") {
+        Section("Look Around") {
           if let snapshot {
             Image(uiImage: snapshot).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 12))
           } else if let scene {
             LookAroundPreview(initialScene: scene, allowsNavigation: true)
               .frame(height: 210).clipShape(RoundedRectangle(cornerRadius: 12))
+          } else if selected == nil {
+            ContentUnavailableView("Search for a place", systemImage: "magnifyingglass")
+              .frame(height: 130)
           } else {
             ContentUnavailableView("No still available", systemImage: "binoculars")
               .frame(height: 130)
           }
-          MapReader { proxy in
-            Map(position: $camera) {
-              if let selected {
-                Annotation("Viewpoint", coordinate: CLLocationCoordinate2D(latitude: selected.latitude, longitude: selected.longitude)) {
-                  Image(systemName: "mappin.and.ellipse").font(.title).foregroundStyle(.red)
-                }.annotationTitles(.hidden)
-              }
-            }
-            .onTapGesture(coordinateSpace: .local) { point in
-              guard let coordinate = proxy.convert(point, from: .local) else { return }
-              selected = PlaceMatch(name: query, address: query, latitude: coordinate.latitude, longitude: coordinate.longitude, mapItemIdentifier: nil)
-            }
-            .frame(height: 190)
-          }
-          Text("Choose a nearby map place above, or tap a point on the map.")
-            .font(.footnote).foregroundStyle(.secondary)
         }
         TextField("Why this place matters", text: $caption, axis: .vertical)
           .lineLimit(2...5)
         if let error { Text(error).foregroundStyle(.red) }
       }
-      .navigationTitle(vignette == nil ? "Add a place" : "Adjust view")
+      .navigationTitle(vignette == nil ? "Add a place" : "Edit place")
       .toolbar {
         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
         ToolbarItem(placement: .confirmationAction) {
@@ -111,7 +92,7 @@ struct BuildingVignetteEditor: View {
   private func search() async {
     do {
       results = try await model.search("\(query), near \(building.address), New York, NY")
-      if results.isEmpty { error = "No match found. You can save the current coordinate and edit it later." }
+      if results.isEmpty { error = "No match found. Try another name or address." }
       else { error = nil }
     } catch { self.error = error.localizedDescription }
   }
