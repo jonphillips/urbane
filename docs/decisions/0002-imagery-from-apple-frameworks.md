@@ -42,21 +42,25 @@ photography. That leaves imagery we generate or choose ourselves.
 - **The angled view is realistic hybrid.** It uses `MKHybridMapConfiguration(elevationStyle: .realistic)` at one
   house camera: pitch 55°, 350 m, heading 30°. Jon's verdict was "realistic hybrid looks good" for
   mid-block Williamsburg and LIC buildings. Realistic standard was tried alongside it and isn't used.
-- **Look Around facing is inconclusive, so every Look Around vignette can be adjusted.** It was hard to
-  tell whether `MKMapItem` scenes consistently face the building. That's this ADR's planned fallback, not
-  a stop. `MKLookAroundSnapshotter` takes a scene, not a camera heading, so adjusting can only change
-  *which scene is requested*. S4 opens with a short device proof of two candidates:
-  1. **A different map item:** pick a nearby place or address from a search around the building.
-  2. **A tapped point:** request the scene from a coordinate Jon taps on a small map, with no map item.
-
-  Whichever one reliably gives a still that faces the building becomes the recipe. The vignette tables
-  already hold a coordinate and an optional map item identifier, so candidate 1 or 2 probably needs no
-  new column. If it does, it's an additive migration, escalated. If neither candidate works, that
-  vignette shows a live `LookAroundPreview` we can pan, instead of a still.
+- **Look Around facing is inconclusive, so S4 tried making it adjustable.** It was hard to tell whether
+  `MKMapItem` scenes consistently face the building. See § Resolved by S4 for the outcome.
 - **A building can exist without a map item.** 420 Kent Avenue found no match in S1. Any building
   search can't find gets a pin placed by hand: the address as typed, the pin's coordinate, and no map
   item identifier. Its Look Around is requested by coordinate. "Fix location" re-runs the search or
   moves the pin (M1 S2).
+
+## Resolved by S4 (Jon, iPad, 2026-11-16)
+
+- **Look Around views aren't adjustable.** `MKLookAroundSnapshotter` takes a scene, not a camera
+  heading, and MapKit never reports where someone has moved or turned in the viewer. So adjusting can
+  only change *which scene is requested*. S4 built both candidates for that: picking a nearby place,
+  and tapping a point on a small map. On the iPad, Jon found it amounted to dropping pins and seeing
+  what came back. It was dropped.
+- **The recipe stays a map item or a coordinate.** The default request, by the building's own map item
+  and then by coordinate, faced The Ashland's front door. When a still faces the wrong way, the
+  fallback is to look: tapping any Look Around still opens the full-screen viewer to pan and walk
+  around, and that isn't saved. A building vignette's place can still be changed, by searching for a
+  different place, but there's no "fix this view" control.
 
 ## Consequences
 

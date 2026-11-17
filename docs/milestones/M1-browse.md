@@ -66,10 +66,10 @@ stills, then the hero image), name, address, summary, status, a placeholder for 
 (ADR-0007).
 Building vignettes can be added and reordered. The snapshot cache is local, keyed by a hash of the vignette's
 recipe. Choose the hero image with the in-app browser through `WebExtractorKit`'s capture, then downscale it.
-Each Look Around still has **Adjust view**. S4 starts with ADR-0002's two-candidate proof (a different map
-item, or a tapped point), builds the one that works, and falls back to a live preview if neither does.
+Tapping any gallery page opens it full screen: the 3D view as a live map, a Look Around still in the
+Look Around viewer. Views aren't adjustable (ADR-0002 § Resolved by S4).
 **Done when:** a building with no hero image and no Look Around coverage still looks good. Device gate:
-Jon swipes through five real buildings and fixes at least one view that faced the wrong way.
+Jon swipes through five real buildings and looks around from at least one still.
 
 ### S5 — Neighborhood chapters
 
