@@ -1,6 +1,6 @@
-# Next Up — M1 · S7e — Satellite 3D on the home map
+# Next Up — M1 · S9 — “A Tuesday here”
 
-**Slices:** M1 · S7e
-**Briefs:** docs/milestones/M1-browse.md §S7e, docs/decisions/0008-subway-stations.md
+**Slices:** M1 · S9
+**Briefs:** docs/milestones/M1-browse.md §S9, docs/decisions/0004-words-are-ours.md
 **Done when:** per the milestone
 **Owed:** see [device-passes.md](device-passes.md)

@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-18 — M1 · S7e — Satellite 3D on the home map (`m1/s7e-satellite-3d`)
+
+- **Result:** Added the Satellite 3D home-map toggle, realistic hybrid style, camera tilt, and map pitch and compass controls.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, 69 UrbaneLibrary tests, dependency resolution, and iOS simulator test build.
+- **Owed:** M1 S7e's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-18 — Rotate JON_PLATFORM_PAT from one command (`effort/platform-pat`)
 
 - **Result:** Added PAT rotation tooling in jon-platform PR #146 and actionable CI diagnostics in ci-workflows PR #2; Urbane PR #41 records the shared changes.
