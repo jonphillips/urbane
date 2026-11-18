@@ -5,6 +5,3 @@ Briefs for work outside the milestone arc (jon-platform ADR-0005 D4), handed to 
 Finished and parked briefs move to [archive/](archive/) with `jon-platform/scripts/archive-brief`.
 
 ## Live
-
-- [platform-pat](platform-pat.md) — Ready. One command sets `JON_PLATFORM_PAT` on every CI consumer and
-  reports stale copies, and the CI clone failure names the fix.

@@ -3,8 +3,8 @@
 Status: Ready
 Summary: Every app's CI clones private jon-platform with its own copy of `JON_PLATFORM_PAT`, because a personal account has no shared Actions secrets. On 2026-11-16 the token was regenerated and set on five repos. Yes Chef was missed, and its CI failed on 2026-11-18 with a bare `Invalid username or token`. Add `jon-platform/scripts/platform-pat`, which sets the token on every consumer from one prompt and reports any repo left stale, and make the CI failure name the fix.
 
-Related: [shared-sqlitedata-vendor](archive/shared-sqlitedata-vendor.md), where the failure surfaced on Yes Chef #532 ·
-jon-platform `docs/ios/drift-control.md` (the CI setup) · [Efforts index](README.md)
+Related: [shared-sqlitedata-vendor](shared-sqlitedata-vendor.md), where the failure surfaced on Yes Chef #532 ·
+jon-platform `docs/ios/drift-control.md` (the CI setup) · [Efforts index](../README.md)
 
 Three PRs: jon-platform and `ci-workflows` first, in either order, then the Urbane companion PR for the
 records (jon-platform `agent-collaboration.md` § Dispatches whose code lands in jon-platform). Branch
