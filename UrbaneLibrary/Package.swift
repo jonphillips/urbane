@@ -9,7 +9,7 @@ let package = Package(
     .library(name: "UrbaneCore", targets: ["UrbaneCore"]),
   ],
   dependencies: [
-    .package(path: "../Vendor/sqlite-data"),
+    .package(path: "../../jon-platform/Vendor/sqlite-data"),
     .package(url: "https://github.com/groue/GRDB.swift", from: "7.6.0"),
     .package(url: "https://github.com/pointfreeco/swift-structured-queries", from: "0.39.1"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
