@@ -256,6 +256,38 @@ The listing page (`#560 $7,482 for rent …`) has no `base rent` and isn't a uni
 **Device gate:** on 420 Kent's **2 beds** tab, Extract rents offers #1009, #802 and #560. On the
 Studio tab, it still says to tap 2 beds.
 
+### S7e — Satellite 3D on the home map
+
+Jon, 2026-11-18: he wants to switch the home map to the 3D flyover look, with the building markers kept,
+"so we can essentially look for tall buildings and see which ones we already have in inventory". Today
+that view exists only full-screen, for a single building, from its postcard (`FullScreenPostcardMap`).
+
+- **A Satellite 3D toggle in the home map's toolbar.** `Toggle(isOn:)` with
+  `.toggleStyle(.button)`, labelled "Satellite 3D" with the `view.3d` symbol, in the trailing group
+  just before Filters. When it's on, the home map uses the flyover's style,
+  `.hybrid(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport]))`. When it's off,
+  the map uses today's `.standard(elevation: .realistic, …)`. Both styles keep Apple's transit POIs
+  excluded (ADR-0008).
+- **Everything on the map stays.** Building markers (with the Show passed filter), neighborhood
+  circles and labels, and subway stations are the same `Map` content in both styles. Don't fork the
+  map into two views, and don't change the station thresholds. Stations still appear only below the
+  10,000 m camera distance from S7b, so the borough-wide launch view still shows none.
+- **Turning it on tilts the camera.** If the current pitch is under 30°, animate to pitch 55° (the
+  postcard pitch), keeping the current center, heading and distance. If the map is already tilted,
+  leave the camera alone. Turning it off never moves the camera. Keep the latest `MapCamera` from the
+  `onMapCameraChange` that's already there.
+- **Map controls for tilt and heading.** Add `.mapControls { MapPitchToggle(); MapCompass() }`, so
+  Jon can tilt or flatten with one tap and get back to north-up after rotating.
+- **Screen state only.** Keep the toggle in `@State`, off at every launch. Don't add a setting or
+  persist it (the restraint rule).
+- No schema, sync or `UrbaneLibrary` change. The tilt rule is two lines in the view, not a library
+  function.
+
+**Done when:** the gate passes. Device gate: on the iPad, Satellite 3D on a Midtown view tilts the
+map into realistic satellite 3D. Every building marker and neighborhood label is still there, and
+stations appear as you zoom in. Tall buildings that are already in the library are easy to tell apart
+from the ones that aren't. Turning it off returns to today's map without moving the camera.
+
 ### S8a — Two opinions, on one device
 
 The opinion half of the old S8, with sync still off. It needs no schema change: `people` and `reactions`
@@ -345,6 +377,9 @@ stays here, so it survives the swap.
 - **Dispatch 6b:** S8b, alone (sync, sharing, Production). Split from the old S8 on 2026-11-17 so the opinion
   work could start while the cutover plan is reviewed.
   **Briefs:** docs/milestones/M1-browse.md §S8b, docs/PROD-CUTOVER.md, docs/decisions/0005-shareable-graph.md
+- **Dispatch 6c:** S7e, Satellite 3D on the home map (Jon, 2026-11-18), after the
+  shared-sqlitedata-vendor effort and ahead of S9.
+  **Briefs:** docs/milestones/M1-browse.md §S7e, docs/decisions/0008-subway-stations.md
 - **Dispatch 7:** S9.
   **Briefs:** docs/milestones/M1-browse.md §S9, docs/decisions/0004-words-are-ours.md
 
@@ -360,6 +395,7 @@ stays here, so it survives the swap.
 - [x] S7b — Fixes from the S6 and S7 device pass
 - [x] S7c — Two touches from the S7b pass
 - [x] S7d — Read StreetEasy's unit cards without the model
+- [ ] S7e — Satellite 3D on the home map
 - [x] S8a — Two opinions, on one device
 - [x] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"
