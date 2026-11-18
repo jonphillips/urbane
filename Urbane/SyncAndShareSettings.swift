@@ -5,6 +5,7 @@ import GRDB
 import Observation
 import SQLiteData
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 import UrbaneSchema
 
@@ -77,12 +78,12 @@ private final class UrbaneSyncStatusModel {
 
 @MainActor
 private final class UrbaneShareModel: ObservableObject {
-  @Published var sharedRecord: SharedRecord?
   @Published var message: String?
   @Published private(set) var canShare = false
   @Dependency(\.defaultDatabase) private var database
   @Dependency(\.defaultSyncEngine) private var engine
   @Dependency(\.syncEngineAvailable) private var engineAvailable
+  private var sharingDelegate: UrbaneCloudSharingControllerDelegate?
 
   func refreshOwnership(for search: Search?) async {
     guard engineAvailable, let search else {
@@ -108,12 +109,100 @@ private final class UrbaneShareModel: ObservableObject {
         return
       }
       canShare = true
-      sharedRecord = try await engine.share(record: search) {
+      let sharedRecord = try await engine.share(record: search) {
         $0[CKShare.SystemFieldKey.title] = "Urbane Apartment Search"
       }
+      presentSharingController(for: sharedRecord.share)
     } catch {
       message = "Couldn’t create the share: \(error.localizedDescription)"
     }
+  }
+
+  private func presentSharingController(for share: CKShare) {
+    guard let scene = UIApplication.shared.connectedScenes
+      .compactMap({ $0 as? UIWindowScene })
+      .first(where: { $0.activationState == .foregroundActive }),
+      let rootViewController = scene.windows.first(where: \.isKeyWindow)?.rootViewController
+    else {
+      message = "Couldn’t open sharing because no active window was found."
+      return
+    }
+
+    var presentingViewController = rootViewController
+    while let presentedViewController = presentingViewController.presentedViewController {
+      presentingViewController = presentedViewController
+    }
+
+    let controller = UICloudSharingController(
+      share: share,
+      container: CKContainer(identifier: UrbaneCloudSync.configuration.containerIdentifier)
+    )
+    controller.modalPresentationStyle = .formSheet
+    if let popover = controller.popoverPresentationController {
+      popover.sourceView = presentingViewController.view
+      popover.sourceRect = CGRect(
+        x: presentingViewController.view.bounds.midX,
+        y: presentingViewController.view.bounds.midY,
+        width: 0,
+        height: 0
+      )
+    }
+
+    let delegate = UrbaneCloudSharingControllerDelegate(
+      onSaveFailure: { [weak self] error in
+        self?.message = "Couldn’t save the share: \(error.localizedDescription)"
+      },
+      onStopSharing: { [engine] in
+        Task { try? await engine.fetchChanges() }
+      },
+      onDismiss: { [weak self] dismissedDelegate in
+        guard self?.sharingDelegate === dismissedDelegate else { return }
+        self?.sharingDelegate = nil
+      }
+    )
+    sharingDelegate = delegate
+    presentingViewController.present(controller, animated: true) { [weak controller] in
+      controller?.presentationController?.delegate = delegate
+    }
+  }
+}
+
+@MainActor
+private final class UrbaneCloudSharingControllerDelegate: NSObject,
+  UICloudSharingControllerDelegate,
+  UIAdaptivePresentationControllerDelegate
+{
+  private let onSaveFailure: (any Error) -> Void
+  private let onStopSharing: () -> Void
+  private let onDismiss: (UrbaneCloudSharingControllerDelegate) -> Void
+
+  init(
+    onSaveFailure: @escaping (any Error) -> Void,
+    onStopSharing: @escaping () -> Void,
+    onDismiss: @escaping (UrbaneCloudSharingControllerDelegate) -> Void
+  ) {
+    self.onSaveFailure = onSaveFailure
+    self.onStopSharing = onStopSharing
+    self.onDismiss = onDismiss
+  }
+
+  func itemTitle(for csc: UICloudSharingController) -> String? {
+    "Urbane Apartment Search"
+  }
+
+  func cloudSharingController(
+    _ csc: UICloudSharingController,
+    failedToSaveShareWithError error: any Error
+  ) {
+    onSaveFailure(error)
+  }
+
+  func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) {
+    onStopSharing()
+  }
+
+  func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    onDismiss(self)
   }
 }
 
@@ -174,7 +263,6 @@ struct SyncAndShareSettingsSection: View {
     .onChange(of: mapModel.activeSearch?.id) { _, _ in
       Task { await sharing.refreshOwnership(for: mapModel.activeSearch) }
     }
-    .sheet(item: $sharing.sharedRecord) { CloudSharingView(sharedRecord: $0) }
     .fileExporter(
       isPresented: $exporting,
       document: backupDocument,
