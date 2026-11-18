@@ -38,7 +38,8 @@ This file only adds what is particular to Urbane.
 
 ### S8b's PR (executor, behind the opt-in)
 
-3. The code in the S8b brief: entitlements, `CKSharingSupported`, the remote-notification background mode,
+3. The code in the S8b brief: entitlements (including `aps-environment`, so CloudKit can push changes to
+   the other iPad), `CKSharingSupported`, the remote-notification background mode,
    the patched SQLiteData override, `CloudSyncKit` with `startImmediately: false` behind a persisted opt-in
    (default **off**), sync health with a per-table row count, backup/restore, share create and accept, the iCloud identity binding,
    and `testflight.conf` (mirror Galavant's: `SCHEMA_GATE=1`, `EXPECTED_SCHEMA_FIELDS`).
@@ -48,11 +49,14 @@ This file only adds what is particular to Urbane.
    `reactions` and `photos`. Follow § Adding a synced table or column steps 1–3 and 5–6. **Step 4 there
    is Jon's:** the PR shows the diff against the fresh (empty) export, and Jon OKs it before the import.
    Write `EXPECTED_SCHEMA_FIELDS` from the same file.
-5. Exercise sync and sharing in Development on the Simulator, as far as one account allows: the engine
-   starts, rows upload, and the share sheet opens. Acceptance needs two Apple IDs, so it waits for step 11.
 
 ### The cutover (Jon, after S8b merges)
 
+5. **One Simulator run in Development.** Agents don't drive the Simulator (jon-platform
+   `agent-collaboration.md`), so this one is Jon's. Run an Xcode build on a Simulator signed into iCloud,
+   never on the iPad with the real library. Turn sync on, add a neighborhood, and check three things: the
+   sync detail reads "Sync is running", the row appears in the CloudKit Console under Development, and
+   Share with Wendy opens the share sheet. Acceptance needs two Apple IDs, so it waits for step 11.
 6. **Deploy Development → Production** in the CloudKit Console. This is one-way: after this, fields can't
    be removed.
 7. **First TestFlight build.** `testflight` with the schema gate. The build installs over Jon's current
