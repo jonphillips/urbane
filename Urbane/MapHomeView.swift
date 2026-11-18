@@ -16,6 +16,8 @@ struct MapHomeView: View {
   @State private var selectedBuilding: Building?
   @State private var selectedNeighborhood: Neighborhood?
   @State private var camera: MapCameraPosition = .region(Self.initialRegion)
+  @State private var latestMapCamera: MapCamera?
+  @State private var showingSatellite3D = false
   @State private var stationRegion: MKCoordinateRegion?
   @State private var stationCameraDistance = Double.infinity
 
@@ -63,8 +65,12 @@ struct MapHomeView: View {
           .annotationTitles(.hidden)
         }
       }
-      .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport])))
+      .mapStyle(showingSatellite3D
+        ? .hybrid(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport]))
+        : .standard(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport])))
+      .mapControls { MapPitchToggle(); MapCompass() }
       .onMapCameraChange(frequency: .continuous) { context in
+        latestMapCamera = context.camera
         stationRegion = context.region
         stationCameraDistance = context.camera.distance
       }
@@ -100,6 +106,8 @@ struct MapHomeView: View {
           Button("Neighborhood", systemImage: "plus.viewfinder") { showingNeighborhood = true }
           Button("Building", systemImage: "building") { showingBuilding = true }
           Button("Import", systemImage: "sparkle.text.clipboard") { showingImport = true }
+          Toggle("Satellite 3D", systemImage: "view.3d", isOn: satellite3DBinding)
+            .toggleStyle(.button)
           Menu("Filters", systemImage: "line.3.horizontal.decrease") {
             Toggle("Show passed", isOn: $showingPassedBuildings)
           }
@@ -173,6 +181,24 @@ struct MapHomeView: View {
           let stationRegion,
           case let .success(stations) = SubwayStations.bundled else { return [] }
     return stations.filter { stationRegion.contains($0) }
+  }
+
+  private var satellite3DBinding: Binding<Bool> {
+    Binding(
+      get: { showingSatellite3D },
+      set: { isEnabled in
+        showingSatellite3D = isEnabled
+        guard isEnabled, let latestMapCamera, latestMapCamera.pitch < 30 else { return }
+        withAnimation {
+          camera = .camera(MapCamera(
+            centerCoordinate: latestMapCamera.centerCoordinate,
+            distance: latestMapCamera.distance,
+            heading: latestMapCamera.heading,
+            pitch: 55
+          ))
+        }
+      }
+    )
   }
 
   private var stationLoadError: String? {
