@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-18 — Rotate JON_PLATFORM_PAT from one command (`effort/platform-pat`)
+
+- **Result:** Added PAT rotation tooling in jon-platform PR #146 and actionable CI diagnostics in ci-workflows PR #2; this Urbane companion PR records the shared changes.
+- **Verification:** All jon-platform script tests, check-index, the dry-run consumer list and live PAT check passed. actionlint and four local Bash 3.2 cases for ci-workflows passed.
+
 ## 2026-11-18 — Shared patched SQLiteData vendor (`effort/shared-sqlitedata-vendor`)
 
 - **Result:** Moved the patched SQLiteData vendor to jon-platform and updated the Yes Chef (#532) and Urbane (#39) consumers; the shared package landed in jon-platform PR #144.
