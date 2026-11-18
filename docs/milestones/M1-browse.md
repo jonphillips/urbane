@@ -288,6 +288,63 @@ map into realistic satellite 3D. Every building marker and neighborhood label is
 stations appear as you zoom in. Tall buildings that are already in the library are easy to tell apart
 from the ones that aren't. Turning it off returns to today's map without moving the camera.
 
+### S7f — Building detail beside the map, links in Safari
+
+Jon's first TestFlight dogfood, 2026-11-18. The building detail opens as a page sheet that covers the
+map. Each building means open, scroll, Done, then tap the next marker, which is slow for browsing.
+Web pages open in a browser sheet stacked on that sheet, too small to read. Galavant fixed the first
+problem with a floating panel over the map's trailing edge (`IdeaMapSplitView`, Galavant #225), and
+this slice copies its shape. Urbane creates no shared package.
+
+1. **On regular width, the building detail is a panel over the map.** When the home map is regular
+   width (iPad, full screen or a wide split), tapping a building marker shows the detail in a panel on
+   the map's trailing edge instead of a sheet. The map stays live behind it.
+   - **Shape:** 420 pt wide, full height under the navigation bar, 12 pt inset from the edges, 16 pt
+     corner radius, `.background` fill, a shadow, and `.transition(.move(edge: .trailing))`. These
+     are Galavant's metrics, with the width raised from 360 pt because the postcard gallery and rent
+     tables need the room.
+   - **The map gives the panel its room.** While the panel is open, the map gets
+     `.safeAreaPadding(.trailing, 432)` (width plus inset), so markers, the map controls from S7e
+     and recentering all stay clear of it.
+   - **Browsing:** tapping another marker while the panel is open swaps its content in place, with
+     `.id(building.id)` so per-building state resets. The selected building's marker shows it's
+     selected (a larger marker, or a contrasting ring; either is fine). Tapping empty map doesn't
+     close the panel, so a stray pan never loses your place.
+   - **Panel chrome, no `NavigationStack`:** the panel's header row holds the building name, the
+     existing ellipsis menu (hero image, website, Edit links) and a close button (`xmark`, labelled
+     "Close"). Don't wrap the panel in a `NavigationStack`. That's the nested-stack trap in
+     jon-platform `ui-and-platforms.md` § iPad split-view trap, and the detail view pushes nothing
+     anyway. Give `BuildingDetailSheet` a chrome parameter (sheet vs. panel), as Galavant's
+     `IdeaDetailView(chrome:)` does, so one view serves both. Don't fork it into two views.
+   - **Everything the detail presents still works from the panel.** Its sheets and full-screen
+     covers (Fix location, Edit links, vignette editor, rejection reason, rent capture and review,
+     image picker, postcard and hero viewers) now present from the window rather than from a sheet.
+     "Around the block"'s Edit button still reorders and deletes.
+2. **Compact width keeps today's sheet.** On iPhone (and a narrow iPad split), the marker tap still
+   presents the detail as today's sheet with Done. Switch on `horizontalSizeClass`, as Galavant's
+   `IdeasScreen` does. The neighborhood detail stays a page sheet everywhere. It's tapped far less
+   often, and it's out of this slice.
+3. **Links you only read open in Safari.** Use `@Environment(\.openURL)` instead of an in-app
+   `WebExtractorBrowser` for:
+   - a review card in "What renters say" (its `sourceURL`), and
+   - "Open building website" in the ellipsis menu. Give it a trailing `arrow.up.right` and keep its
+     disabled state and wording when there's no website.
+
+   A StreetEasy link may open the StreetEasy app if it's installed. That's fine.
+4. **Browsers that capture stay in the app, at full size.** "Choose hero image" and "Capture rents"
+   have to read the page, so they keep `WebExtractorBrowser`, but each sheet gets
+   `.presentationSizing(.page)` so it's as large as the iPad allows. Don't change `WebExtractorKit`.
+
+No schema, sync or `UrbaneLibrary` change. Selection stays `@State` in `MapHomeView`
+(`selectedBuilding`, already there). Don't persist which panel was open.
+
+**Done when:** the gate passes. Device gate on the iPad, landscape: tap three building markers in a
+row without closing anything, and the panel swaps each time while the map stays put with the selected
+marker marked. Close the panel, and the map controls slide back. From the panel, Capture rents opens
+a page-sized browser, Edit links and Fix location open and save, and the postcard opens full screen. A
+review card and "Open building website" open in Safari. On the iPhone, a marker tap still opens the
+sheet.
+
 ### S8a — Two opinions, on one device
 
 The opinion half of the old S8, with sync still off. It needs no schema change: `people` and `reactions`
@@ -380,6 +437,9 @@ stays here, so it survives the swap.
 - **Dispatch 6c:** S7e, Satellite 3D on the home map (Jon, 2026-11-18), after the
   shared-sqlitedata-vendor effort and ahead of S9.
   **Briefs:** docs/milestones/M1-browse.md §S7e, docs/decisions/0008-subway-stations.md
+- **Dispatch 6d:** S7f, building detail beside the map and links in Safari, from the first
+  TestFlight dogfood (Jon, 2026-11-18), ahead of S9.
+  **Briefs:** docs/milestones/M1-browse.md §S7f
 - **Dispatch 7:** S9.
   **Briefs:** docs/milestones/M1-browse.md §S9, docs/decisions/0004-words-are-ours.md
 
@@ -396,6 +456,7 @@ stays here, so it survives the swap.
 - [x] S7c — Two touches from the S7b pass
 - [x] S7d — Read StreetEasy's unit cards without the model
 - [x] S7e — Satellite 3D on the home map
+- [ ] S7f — Building detail beside the map, links in Safari
 - [x] S8a — Two opinions, on one device
 - [x] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"
