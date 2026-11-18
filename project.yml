@@ -41,6 +41,7 @@ targets:
         com.apple.security.application-groups: [group.com.jonphillips.urbane]
         com.apple.developer.icloud-container-identifiers: [iCloud.com.jonphillips.urbane]
         com.apple.developer.icloud-services: [CloudKit]
+        aps-environment: development
     info:
       path: Urbane/Info.plist
       properties:
