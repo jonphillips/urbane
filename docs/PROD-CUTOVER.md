@@ -18,6 +18,15 @@ This file only adds what is particular to Urbane.
   it already uploaded, and Production stays partly empty, as happened to Yes Chef. **Exercise
   Development only on the Simulator, or on a device without the real library, and keep sync's opt-in
   off on Jon's iPad until step 9.**
+- **It already has, once (2026-11-18).** Step 5 ran as an Xcode build on Jon's iPad, not the
+  Simulator, with sync on, so the real library uploaded to Development and the iPad's sync metadata
+  now records those uploads. Sync is back off. Steps 8 and 9 below carry the fix: restore before turning
+  sync on, so Production is seeded from a fresh sync peer (jon-platform `persistence-and-sync.md`
+  § Moving a populated library to Production). Development keeps the stray copy; it does no harm.
+- **After step 9, no Xcode build on Jon's iPad.** The opt-in is stored on the device and survives an
+  install, so an Xcode build installed over the TestFlight app would start syncing the real library to
+  Development again. Device passes after the cutover use a TestFlight build, the Simulator, or another
+  device.
 - **There's no backup yet.** Backup and restore arrive with S8b (step 3), from `CloudSyncKit`. Until
   then, Jon's library exists only on his iPad. Backups are stamped by build type: one taken in an Xcode
   (Development) build won't restore into a TestFlight build. That's why step 8 takes the backup on the
@@ -61,10 +70,16 @@ This file only adds what is particular to Urbane.
    be removed.
 7. **First TestFlight build.** `testflight` with the schema gate. The build installs over Jon's current
    app on his iPad and keeps the library, with sync still off.
-8. **Back up before syncing.** In Urbane's Settings, take a backup to Files, then screenshot the sync
-   detail's row counts for every table. This is the copy to restore from if anything goes wrong.
-9. **Turn sync on, on Jon's iPad only.** Keep Urbane in the foreground until sync health reads up to date.
-   The library is small (hundreds of rows, not Yes Chef's 50,000), so expect minutes.
+8. **Back up before syncing.** In the TestFlight build, in Urbane's Settings, take a backup to Files,
+   then screenshot the sync detail's row counts for every table. Step 9 restores this copy, and it's the
+   one to fall back on if anything goes wrong. (A backup taken in an Xcode build won't restore here.)
+9. **Restore, then turn sync on, on Jon's iPad only.** Settings → Restore backup → step 8's file →
+   "Restore and turn sync off". Reopen Urbane and check the row counts match step 8's screenshot. Then
+   turn sync on. The restore drops the sync metadata left over from the Development run, so the whole
+   library uploads to Production. Don't skip it: turning sync on without the restore would leave
+   Production partly empty while the status reads up to date. Keep Urbane in the foreground until sync
+   health reads up to date. The library is small (hundreds of rows, not Yes Chef's 50,000), so expect
+   minutes.
 10. **Share.** Settings → Share with Wendy (owner only). Send her the invitation.
 11. **Wendy installs fresh from TestFlight and accepts.** Her first launch creates a throwaway local root;
     accepting the share replaces it (S8b brief, "One root per device"). Let her iPad download until
