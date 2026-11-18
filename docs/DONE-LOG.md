@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-18 — Shared patched SQLiteData vendor (`effort/shared-sqlitedata-vendor`)
+
+- **Result:** Moved the patched SQLiteData vendor to jon-platform and updated the Yes Chef (#532) and Urbane (#39) consumers; the shared package landed in jon-platform PR #144.
+- **Verification:** scripts/check-drift.sh passed (77 library tests, SwiftLint, and the app test-target build); workspace package resolution passed for Urbane and YesChef.
+
 ## 2026-11-18 — M1 · S8b — Sync and sharing on, through Production (`codex/m1-s8b-sync-sharing`)
 
 - **Result:** Urbane syncs through CloudKit behind a persisted opt-in (default off) and an iCloud account check, using the patched SQLiteData 1.13.0 vendored from Yes Chef. Settings has sync health with a row count for all 12 synced tables, backup and restore, an owner-only Share with Wendy, and share acceptance in both scene paths. Root ownership comes from the CloudKit zone owner: a participant never seeds people, an empty local root is removed on accept, and a populated one is kept without merging, with a dismissable notice. "This is me" claims a person for the iCloud account only while sync is on, one person per account. The full schema is imported to Development, and testflight.conf carries the schema gate.
