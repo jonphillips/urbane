@@ -43,7 +43,7 @@ struct MapHomeView: View {
         ForEach(BuildingBrowse.visibleBuildings(model.buildings, showingRejected: showingPassedBuildings)) { building in
           Annotation(building.name, coordinate: CLLocationCoordinate2D(latitude: building.latitude, longitude: building.longitude)) {
             let isSelected = selectedBuilding?.id == building.id
-            Button { withAnimation { selectedBuilding = building } } label: {
+            Button { selectedBuilding = building } label: {
               Image(systemName: "building.2.fill")
                 .font(isSelected ? .title3.weight(.semibold) : .body.weight(.semibold)).padding(isSelected ? 11 : 9)
                 .foregroundStyle(.white).background(color(for: building.status), in: Circle())
@@ -105,11 +105,13 @@ struct MapHomeView: View {
             .id(building.id)
             .frame(width: 420)
             .background(.background, in: RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(radius: 12)
             .padding(12)
             .transition(.move(edge: .trailing))
         }
       }
+      .animation(.default, value: selectedBuilding != nil)
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Menu("Debug", systemImage: "ladybug") {
