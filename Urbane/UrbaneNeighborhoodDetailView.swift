@@ -63,7 +63,7 @@ struct NeighborhoodDetailSheet: View {
           } else {
             ForEach(buildings) { building in
               NavigationLink {
-                BuildingDetailSheet(building: building, model: model)
+                BuildingDetailSheet(building: building, model: model, chrome: .sheet)
               } label: {
                 VStack(alignment: .leading, spacing: 3) {
                   Text(building.name)

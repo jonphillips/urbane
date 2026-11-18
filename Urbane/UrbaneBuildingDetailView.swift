@@ -15,6 +15,8 @@ private struct BrowserDestination: Identifiable {
 struct BuildingDetailSheet: View {
   let building: Building
   let model: UrbaneMapModel
+  let chrome: BuildingDetailChrome
+  @Environment(\.openURL) private var openURL
   @State private var postcard: UIImage?
   @State private var selectedGalleryPage = "postcard"
   @State private var showingBrowser = false
@@ -22,7 +24,6 @@ struct BuildingDetailSheet: View {
   @State private var browserDestination: BrowserDestination?
   @State private var imageCandidates: [URL] = []
   @State private var imageError: String?
-  @State private var selectedReviewURL: BrowserDestination?
   @State private var showingRentBrowser = false
   @State private var pendingRentReview: RentReviewContext?
   @State private var rentReview: RentReviewContext?
@@ -62,6 +63,16 @@ struct BuildingDetailSheet: View {
 
   var body: some View {
     VStack(spacing: 0) {
+      if case let .panel(onClose) = chrome {
+        BuildingDetailPanelHeader(
+          buildingName: currentBuilding.name,
+          hasWebsite: buildingWebsiteURL != nil,
+          onChooseHero: openHeroBrowser,
+          onOpenWebsite: openBuildingSite,
+          onEditLinks: { editingLinks = true },
+          onClose: onClose
+        )
+      }
       gallery
       List {
         Section {
@@ -111,7 +122,7 @@ struct BuildingDetailSheet: View {
             ForEach(reviews) { review in
               Button {
                 guard let url = URL(string: review.sourceURL) else { return }
-                selectedReviewURL = BrowserDestination(url: url, title: review.source)
+                openURL(url)
               } label: {
                 ReviewCard(review: review)
                   .opacity(isStale(review.gatheredAt) ? 0.58 : 1)
@@ -162,17 +173,18 @@ struct BuildingDetailSheet: View {
         if let imageError { Section { Text(imageError).foregroundStyle(.red) } }
       }
     }
-    .navigationTitle("Building")
+    .navigationTitle(chrome.isPanel ? "" : "Building")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
-      ToolbarItem(placement: .topBarTrailing) {
-        Menu {
-          Button(buildingWebsiteURL == nil ? "Choose hero image — Add a website in Edit links" : "Choose hero image", systemImage: "photo") { openHeroBrowser() }
-            .disabled(buildingWebsiteURL == nil)
-          Button(buildingWebsiteURL == nil ? "Open building website — Add a website in Edit links" : "Open building website", systemImage: "safari") { openBuildingSite() }
-            .disabled(buildingWebsiteURL == nil)
-          Button("Edit links", systemImage: "link") { editingLinks = true }
-        } label: { Image(systemName: "ellipsis") }
+      if !chrome.isPanel {
+        ToolbarItem(placement: .topBarTrailing) {
+          BuildingDetailActionsMenu(
+            hasWebsite: buildingWebsiteURL != nil,
+            onChooseHero: openHeroBrowser,
+            onOpenWebsite: openBuildingSite,
+            onEditLinks: { editingLinks = true }
+          )
+        }
       }
     }
     .task(id: imageRecipe) { await loadImagery() }
@@ -196,10 +208,8 @@ struct BuildingDetailSheet: View {
           }
           return .extracted
         }
+        .presentationSizing(.page)
       }
-    }
-    .sheet(item: $selectedReviewURL) { destination in
-      WebExtractorBrowser(startURL: destination.url, title: destination.title, confirmLabel: "Done") { _, _ in .extracted }
     }
     .sheet(isPresented: $addingVignette) {
       BuildingVignetteEditor(building: currentBuilding, model: model, vignette: nil) { id in
@@ -243,41 +253,13 @@ struct BuildingDetailSheet: View {
             return .notFound(message: "Rent extraction failed: \(error.localizedDescription)")
           }
         }
+        .presentationSizing(.page)
       }
     }
     .sheet(item: $rentReview) { context in RentReviewSheet(context: context, model: model) }
     .sheet(isPresented: $showingImagePicker) {
-      NavigationStack {
-        ScrollView {
-          LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-            ForEach(Array(imageCandidates.prefix(20)), id: \.absoluteString) { url in
-              Button {
-                showingImagePicker = false
-                Task { await saveHeroImage(from: url) }
-              } label: {
-                VStack(alignment: .leading, spacing: 5) {
-                  AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                      image.resizable().scaledToFill()
-                    } else if phase.error != nil {
-                      ContentUnavailableView("Image unavailable", systemImage: "photo")
-                    } else {
-                      ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                  }
-                  .frame(height: 132).frame(maxWidth: .infinity)
-                  .clipped().clipShape(RoundedRectangle(cornerRadius: 10))
-                  Text(url.lastPathComponent.isEmpty ? (url.host ?? "Image") : url.lastPathComponent)
-                    .font(.caption).lineLimit(1).foregroundStyle(.secondary)
-                }
-              }
-              .buttonStyle(.plain)
-            }
-          }
-          .padding()
-        }
-        .navigationTitle("Choose hero image")
-        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingImagePicker = false } } }
+      HeroImagePickerSheet(imageCandidates: imageCandidates) { url in
+        Task { await saveHeroImage(from: url) }
       }
     }
   }
@@ -357,7 +339,7 @@ struct BuildingDetailSheet: View {
 
   private func openBuildingSite() {
     guard let url = buildingWebsiteURL else { return }
-    selectedReviewURL = BrowserDestination(url: url, title: currentBuilding.name)
+    openURL(url)
   }
 
   private func presentPendingRentReview() {
