@@ -361,5 +361,5 @@ stays here, so it survives the swap.
 - [x] S7c — Two touches from the S7b pass
 - [x] S7d — Read StreetEasy's unit cards without the model
 - [x] S8a — Two opinions, on one device
-- [ ] S8b — Sync and sharing on, through Production
+- [x] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"

@@ -1,6 +1,6 @@
-# Next Up — Sync and sharing on, through Production
+# Next Up — "A Tuesday here"
 
-**Slices:** M1 · S8b
-**Briefs:** docs/milestones/M1-browse.md §S8b, docs/PROD-CUTOVER.md, docs/decisions/0005-shareable-graph.md
+**Slices:** M1 · S9
+**Briefs:** docs/milestones/M1-browse.md §S9, docs/decisions/0004-words-are-ours.md
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)

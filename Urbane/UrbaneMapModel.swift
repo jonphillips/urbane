@@ -1,4 +1,5 @@
 import Dependencies
+import CloudKit
 import Foundation
 import LLMClientKit
 import Observation
@@ -16,19 +17,20 @@ final class UrbaneMapModel {
   @ObservationIgnored @Dependency(\.commuteClient) var commuteClient
   @ObservationIgnored @Dependency(\.transitDirectionsClient) var transitDirectionsClient
   @ObservationIgnored @Dependency(\.modelClient) var modelClient
-  @ObservationIgnored @FetchAll(Search.all) var searches
-  @ObservationIgnored @FetchAll(Person.order(by: \.displayName)) var people
-  @ObservationIgnored @FetchAll(Reaction.all) var reactions
-  @ObservationIgnored @FetchAll(Neighborhood.order(by: \.name)) var neighborhoods
-  @ObservationIgnored @FetchAll(Building.order(by: \.name)) var buildings
-  @ObservationIgnored @FetchAll(NeighborhoodVignette.all) var neighborhoodVignettes
-  @ObservationIgnored @FetchAll(BuildingVignette.all) var buildingVignettes
-  @ObservationIgnored @FetchAll(BuildingReview.all) var reviews
-  @ObservationIgnored @FetchAll(NeighborhoodRent.all) var neighborhoodRents
-  @ObservationIgnored @FetchAll(RentObservation.all) var rentObservations
-  @ObservationIgnored @FetchAll(Commute.all) var commutes
+  @ObservationIgnored @FetchAll(Search.all) var allSearches
+  @ObservationIgnored @FetchAll(Person.order(by: \.displayName)) var allPeople
+  @ObservationIgnored @FetchAll(Reaction.all) var allReactions
+  @ObservationIgnored @FetchAll(Neighborhood.order(by: \.name)) var allNeighborhoods
+  @ObservationIgnored @FetchAll(Building.order(by: \.name)) var allBuildings
+  @ObservationIgnored @FetchAll(NeighborhoodVignette.all) var allNeighborhoodVignettes
+  @ObservationIgnored @FetchAll(BuildingVignette.all) var allBuildingVignettes
+  @ObservationIgnored @FetchAll(BuildingReview.all) var allReviews
+  @ObservationIgnored @FetchAll(NeighborhoodRent.all) var allNeighborhoodRents
+  @ObservationIgnored @FetchAll(RentObservation.all) var allRentObservations
+  @ObservationIgnored @FetchAll(Commute.all) var allCommutes
 
   private var didBootstrap = false
+  var foreignOwnedSearchIDs: Set<Search.ID> = []
   var message: String?
   var placeSearchWaitingFor: Duration?
   var rentImportMessage: String?
@@ -57,13 +59,22 @@ final class UrbaneMapModel {
           try Search.insert { search }.execute(db)
           searches.append(search)
         }
-        if let search = searches.first {
+        let foreignIDs = (try? UrbaneCloudSync.foreignOwnedSearchIDs(in: db)) ?? []
+        foreignOwnedSearchIDs = foreignIDs
+        let search = SearchPeopleOperations.activeSearch(in: searches, foreignOwnedRootIDs: foreignIDs)
+        if let search {
           try SearchPeopleOperations.seedDefaults(
-            searchID: search.id, jonID: uuid(), wendyID: uuid(), in: db
+            searchID: search.id, jonID: uuid(), wendyID: uuid(),
+            foreignOwnedRootIDs: foreignIDs, in: db
           )
         }
       }
     }
+    if let acceptanceMessage = UserDefaults.standard.string(forKey: "urbane.shareAcceptanceMessage") {
+      message = acceptanceMessage
+      UserDefaults.standard.removeObject(forKey: "urbane.shareAcceptanceMessage")
+    }
+    Task { await bindToCurrentICloudPersonIfKnown() }
     Task { await refreshMissingCommutes() }
   }
 
@@ -81,7 +92,7 @@ final class UrbaneMapModel {
 
   func addNeighborhood(name: String, match: PlaceMatch, latitudeSpan: Double, longitudeSpan: Double) {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty, let search = searches.first else { return }
+    guard !trimmed.isEmpty, let search = activeSearch else { return }
     withErrorReporting {
       try database.write { db in
         try Neighborhood.insert {
@@ -265,13 +276,15 @@ final class UrbaneMapModel {
     replaceChapters: Set<Int>,
     replaceReviews: Set<String>
   ) throws {
-    guard let search = searches.first else { throw ChatImportError.invalidPaste("The Search row is not ready yet.") }
+    guard let search = activeSearch else { throw ChatImportError.invalidPaste("The Search row is not ready yet.") }
     var importedBuildings: [Building] = []
     try database.write { db in
-      var neighborhoods = try Neighborhood.fetchAll(db)
-      var buildings = try Building.fetchAll(db)
-      var reviews = try BuildingReview.fetchAll(db)
-      let vignetteRows = try NeighborhoodVignette.fetchAll(db)
+      var neighborhoods = try Neighborhood.fetchAll(db).filter { $0.searchID == search.id }
+      let activeNeighborhoodIDs = Set(neighborhoods.map(\.id))
+      var buildings = try Building.fetchAll(db).filter { activeNeighborhoodIDs.contains($0.neighborhoodID) }
+      let activeBuildingIDs = Set(buildings.map(\.id))
+      var reviews = try BuildingReview.fetchAll(db).filter { activeBuildingIDs.contains($0.buildingID) }
+      let vignetteRows = try NeighborhoodVignette.fetchAll(db).filter { activeNeighborhoodIDs.contains($0.neighborhoodID) }
       var neighborhoodIDs: [String: UUID] = [:]
 
       for (index, incoming) in paste.neighborhoods.enumerated() {
@@ -359,6 +372,7 @@ final class UrbaneMapModel {
     let buildingsToCheck = buildings + importedBuildings
     Task { await refreshMissingCommutes(for: buildingsToCheck) }
   }
+
   // swiftlint:enable function_body_length
 
   static func normalize(_ value: String) -> String {

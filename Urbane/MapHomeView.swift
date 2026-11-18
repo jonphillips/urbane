@@ -1,5 +1,4 @@
 import MapKit
-import SQLiteData
 import SwiftUI
 import UniformTypeIdentifiers
 import UrbaneCore
@@ -20,13 +19,10 @@ struct MapHomeView: View {
   @State private var stationRegion: MKCoordinateRegion?
   @State private var stationCameraDistance = Double.infinity
 
-  @FetchAll(Neighborhood.order(by: \.name)) private var neighborhoods
-  @FetchAll(Building.order(by: \.name)) private var buildings
-
   var body: some View {
     NavigationStack {
       Map(position: $camera) {
-        ForEach(neighborhoods) { neighborhood in
+        ForEach(model.neighborhoods) { neighborhood in
           MapCircle(
             center: CLLocationCoordinate2D(latitude: neighborhood.centerLatitude, longitude: neighborhood.centerLongitude),
             radius: max(neighborhood.latitudeSpan, neighborhood.longitudeSpan) * 55_500
@@ -41,7 +37,7 @@ struct MapHomeView: View {
           }
           .annotationTitles(.hidden)
         }
-        ForEach(BuildingBrowse.visibleBuildings(buildings, showingRejected: showingPassedBuildings)) { building in
+        ForEach(BuildingBrowse.visibleBuildings(model.buildings, showingRejected: showingPassedBuildings)) { building in
           Annotation(building.name, coordinate: CLLocationCoordinate2D(latitude: building.latitude, longitude: building.longitude)) {
             Button { selectedBuilding = building } label: {
               Image(systemName: "building.2.fill")
@@ -78,6 +74,20 @@ struct MapHomeView: View {
           Text("Subway stations couldn't be loaded: \(stationLoadError)")
             .font(.footnote).padding(8).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
             .padding()
+        }
+      }
+      .overlay(alignment: .top) {
+        if let message = model.message {
+          HStack(alignment: .top, spacing: 8) {
+            Text(message)
+              .font(.caption)
+            Button("Dismiss", systemImage: "xmark.circle.fill") { model.message = nil }
+              .labelStyle(.iconOnly)
+              .foregroundStyle(.secondary)
+          }
+          .padding(10)
+          .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+          .padding()
         }
       }
       .toolbar {
@@ -137,6 +147,15 @@ struct MapHomeView: View {
       .task {
         model.bootstrap()
       }
+      .onChange(of: model.people) { _, _ in
+        Task { await model.bindToCurrentICloudPersonIfKnown() }
+      }
+      .onChange(of: model.searches.map(\.id)) { _, _ in
+        Task {
+          await model.refreshSearchOwnership()
+          await model.reconcileAcceptedShare()
+        }
+      }
     }
   }
 
@@ -175,6 +194,10 @@ private struct PeopleSettingsSheet: View {
   var body: some View {
     NavigationStack {
       Form {
+        SyncAndShareSettingsSection(mapModel: model)
+        if let message = model.message {
+          Section { Text(message).font(.caption).foregroundStyle(.secondary) }
+        }
         Section {
           if model.people.isEmpty {
             Text("People are being set up.").foregroundStyle(.secondary)
@@ -188,6 +211,9 @@ private struct PeopleSettingsSheet: View {
                 }
               }
               .labelsHidden()
+              .onChange(of: thisIsMe) { _, value in
+                model.bindCurrentPerson(id: UUID(uuidString: value))
+              }
             }
           }
         } header: {
@@ -268,7 +294,6 @@ private struct AddNeighborhoodSheet: View {
 private struct AddBuildingSheet: View {
   let model: UrbaneMapModel
   @Environment(\.dismiss) private var dismiss
-  @FetchAll(Neighborhood.order(by: \.name)) private var neighborhoods
   @State private var neighborhoodID: UUID?
   @State private var query = ""
   @State private var name = ""
@@ -289,7 +314,7 @@ private struct AddBuildingSheet: View {
     NavigationStack {
       Form {
         Picker("Neighborhood", selection: $neighborhoodID) {
-          ForEach(neighborhoods) { Text($0.name).tag(Optional($0.id)) }
+          ForEach(model.neighborhoods) { Text($0.name).tag(Optional($0.id)) }
         }
         TextField("Name, address, or building URL", text: $query)
           .textInputAutocapitalization(.never).keyboardType(.URL)
@@ -305,7 +330,7 @@ private struct AddBuildingSheet: View {
         }
         TextField("Building name", text: $name)
         TextField("Address", text: $address)
-        if let neighborhood = neighborhoods.first(where: { $0.id == neighborhoodID }) {
+        if let neighborhood = model.neighborhoods.first(where: { $0.id == neighborhoodID }) {
           MapReader { proxy in
             Map(position: $pinCamera) {
               if let latitude = Double(manualLatitude), let longitude = Double(manualLongitude) {

@@ -1,5 +1,5 @@
 {
-  "originHash" : "2897c3a8732611f9612edabf99fab795769a23417a5328d12ff754bef3f6c0f6",
+  "originHash" : "608f9cd5fa920eb17da2be6a20015d149f81257f85819f19fb084619a874a717",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -17,15 +17,6 @@
       "state" : {
         "revision" : "92a554cd0d5e8d67cb18993c6054e73fe42c066c",
         "version" : "7.12.0"
-      }
-    },
-    {
-      "identity" : "sqlite-data",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/sqlite-data",
-      "state" : {
-        "revision" : "e72164ceb92a10b62407624c98e5bc2c47d8c0e1",
-        "version" : "1.13.0"
       }
     },
     {
@@ -71,6 +62,24 @@
       "state" : {
         "revision" : "2f83b70a6fbf45795dd40ccaa907bad3c8d93fe1",
         "version" : "1.17.2"
+      }
+    },
+    {
+      "identity" : "swift-docc-plugin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-docc-plugin",
+      "state" : {
+        "revision" : "647c708be89f834fa6a6d4945442793a77ddf5b6",
+        "version" : "1.5.0"
+      }
+    },
+    {
+      "identity" : "swift-docc-symbolkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-docc-symbolkit",
+      "state" : {
+        "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
+        "version" : "1.0.0"
       }
     },
     {

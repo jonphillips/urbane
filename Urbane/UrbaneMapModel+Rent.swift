@@ -12,8 +12,9 @@ import UrbaneSchema
         neighborhoods: neighborhoods.map(\.name), points: dataset.points, areaNames: dataset.areaNames
       )
       try database.write { db in
-        let storedNeighborhoods = try Neighborhood.fetchAll(db)
-        let existing = try NeighborhoodRent.fetchAll(db)
+        let activeNeighborhoodIDs = Set(neighborhoods.map(\.id))
+        let storedNeighborhoods = try Neighborhood.fetchAll(db).filter { activeNeighborhoodIDs.contains($0.id) }
+        let existing = try NeighborhoodRent.fetchAll(db).filter { activeNeighborhoodIDs.contains($0.neighborhoodID) }
         for match in plan.matches {
           guard let neighborhood = storedNeighborhoods.first(where: {
             Self.normalize($0.name) == Self.normalize(match.neighborhood)
@@ -75,9 +76,8 @@ import UrbaneSchema
   }
 
   func refreshMissingCommutes(for candidates: [Building]? = nil) async {
-    let savedBuildings = try? await database.read { db in try Building.fetchAll(db) }
     var seen = Set<UUID>()
-    let buildingsToCheck = (candidates ?? savedBuildings ?? buildings).filter { seen.insert($0.id).inserted }
+    let buildingsToCheck = (candidates ?? buildings).filter { seen.insert($0.id).inserted }
     for building in buildingsToCheck {
       let existing = Set(commutes.filter { $0.buildingID == building.id }.map(\.destination))
       guard existing.count < CommuteDestination.allCases.count else { continue }

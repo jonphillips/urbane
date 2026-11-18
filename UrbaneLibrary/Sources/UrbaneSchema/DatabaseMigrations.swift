@@ -1,6 +1,8 @@
 import SQLiteData
 
 public enum UrbaneDatabaseMigrations {
+  public static let schemaVersion = 3
+
   public static func makeMigrator() -> DatabaseMigrator {
     var migrator = DatabaseMigrator()
     migrator.registerMigration("Create M1 search graph") { db in
