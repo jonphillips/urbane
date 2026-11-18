@@ -3,8 +3,8 @@
 Status: Dispatched
 Summary: Yes Chef and Urbane each carry a patched copy of SQLiteData in their own `Vendor/sqlite-data`. With both apps in `jon-platform-workspace`, Xcode finds two top-level packages named `sqlite-data` and resolves nothing, so no scheme in the workspace builds. Move the one copy into jon-platform and point both apps at it.
 
-Related: [M1 · S8b](../milestones/M1-browse.md#s8b--sync-and-sharing-on-through-production) ·
-jon-platform `SEAM-LEDGER.md` ("Patched SQLiteData") · [Efforts index](README.md)
+Related: [M1 · S8b](../../milestones/M1-browse.md#s8b--sync-and-sharing-on-through-production) ·
+jon-platform `SEAM-LEDGER.md` ("Patched SQLiteData") · [Efforts index](../README.md)
 
 Three PRs, in this order: jon-platform first, then Yes Chef and Urbane. App CI clones jon-platform `main`,
 so the app PRs open after the jon-platform PR merges (jon-platform `agent-collaboration.md` § Dispatches
