@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-18 — Building detail beside the map, links in Safari (`m1/s7f-building-detail-panel`)
+
+- **Result:** Regular width now shows building details in a swappable map-side panel; compact width retains the detail sheet. Read-only links open externally, while capture browsers use page sizing.
+- **Verification:** SwiftLint strict passed with zero violations; all 69 UrbaneLibrary tests passed; iOS Simulator build-for-testing succeeded.
+- **Owed:** M1 S7f's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-18 — M1 · S7e — Satellite 3D on the home map (`m1/s7e-satellite-3d`)
 
 - **Result:** Added the Satellite 3D home-map toggle, realistic hybrid style, camera tilt, and map pitch and compass controls.

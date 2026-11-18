@@ -6,6 +6,7 @@ import UrbaneSchema
 
 struct MapHomeView: View {
   @State private var model = UrbaneMapModel()
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var showingNeighborhood = false
   @State private var showingBuilding = false
   @State private var showingImport = false
@@ -41,11 +42,12 @@ struct MapHomeView: View {
         }
         ForEach(BuildingBrowse.visibleBuildings(model.buildings, showingRejected: showingPassedBuildings)) { building in
           Annotation(building.name, coordinate: CLLocationCoordinate2D(latitude: building.latitude, longitude: building.longitude)) {
+            let isSelected = selectedBuilding?.id == building.id
             Button { selectedBuilding = building } label: {
               Image(systemName: "building.2.fill")
-                .font(.body.weight(.semibold)).padding(9)
+                .font(isSelected ? .title3.weight(.semibold) : .body.weight(.semibold)).padding(isSelected ? 11 : 9)
                 .foregroundStyle(.white).background(color(for: building.status), in: Circle())
-                .overlay(Circle().stroke(.white, lineWidth: 2))
+                .overlay(Circle().stroke(isSelected ? .yellow : .white, lineWidth: isSelected ? 4 : 2))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(building.name)
@@ -75,6 +77,7 @@ struct MapHomeView: View {
         stationCameraDistance = context.camera.distance
       }
       .ignoresSafeArea(edges: .bottom)
+      .safeAreaPadding(.trailing, horizontalSizeClass == .regular && selectedBuilding != nil ? 432 : 0)
       .overlay(alignment: .bottom) {
         if let stationLoadError {
           Text("Subway stations couldn't be loaded: \(stationLoadError)")
@@ -96,6 +99,19 @@ struct MapHomeView: View {
           .padding()
         }
       }
+      .overlay(alignment: .trailing) {
+        if horizontalSizeClass == .regular, let building = selectedBuilding {
+          BuildingDetailSheet(building: building, model: model, chrome: .panel { withAnimation { selectedBuilding = nil } })
+            .id(building.id)
+            .frame(width: 420)
+            .background(.background, in: RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(radius: 12)
+            .padding(12)
+            .transition(.move(edge: .trailing))
+        }
+      }
+      .animation(.default, value: selectedBuilding != nil)
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Menu("Debug", systemImage: "ladybug") {
@@ -137,9 +153,9 @@ struct MapHomeView: View {
       )) {
         Button("OK") { rentImportNotice = nil }
       } message: { Text(rentImportNotice ?? "") }
-      .sheet(item: $selectedBuilding) { building in
+      .sheet(item: compactSelectedBuilding) { building in
         NavigationStack {
-          BuildingDetailSheet(building: building, model: model)
+          BuildingDetailSheet(building: building, model: model, chrome: .sheet)
             .toolbar {
               ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { selectedBuilding = nil }
@@ -165,6 +181,13 @@ struct MapHomeView: View {
         }
       }
     }
+  }
+
+  private var compactSelectedBuilding: Binding<Building?> {
+    Binding(
+      get: { horizontalSizeClass == .regular ? nil : selectedBuilding },
+      set: { selectedBuilding = $0 }
+    )
   }
 
   private func color(for status: BuildingStatus) -> Color {
@@ -210,50 +233,6 @@ struct MapHomeView: View {
     center: CLLocationCoordinate2D(latitude: 40.7128, longitude: -73.96),
     span: MKCoordinateSpan(latitudeDelta: 0.13, longitudeDelta: 0.18)
   )
-}
-
-private struct PeopleSettingsSheet: View {
-  let model: UrbaneMapModel
-  @Environment(\.dismiss) private var dismiss
-  @AppStorage("urbane.thisIsMe") private var thisIsMe = ""
-
-  var body: some View {
-    NavigationStack {
-      Form {
-        SyncAndShareSettingsSection(mapModel: model)
-        if let message = model.message {
-          Section { Text(message).font(.caption).foregroundStyle(.secondary) }
-        }
-        Section {
-          if model.people.isEmpty {
-            Text("People are being set up.").foregroundStyle(.secondary)
-          } else {
-            VStack(alignment: .leading, spacing: 6) {
-              Text("This is me")
-              Picker("This is me", selection: $thisIsMe) {
-                Text("Choose a person").tag("")
-                ForEach(model.people) { person in
-                  Text(person.displayName).tag(person.id.uuidString)
-                }
-              }
-              .labelsHidden()
-              .onChange(of: thisIsMe) { _, value in
-                model.bindCurrentPerson(id: UUID(uuidString: value))
-              }
-            }
-          }
-        } header: {
-          Text("People")
-        } footer: {
-          Text("This choice is saved on this device. Change it when the other person is rating buildings.")
-        }
-      }
-      .navigationTitle("People & identity")
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-      }
-    }
-  }
 }
 
 private struct AddNeighborhoodSheet: View {
