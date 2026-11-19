@@ -345,6 +345,44 @@ a page-sized browser, Edit links and Fix location open and save, and the postcar
 review card and "Open building website" open in Safari. On the iPhone, a marker tap still opens the
 sheet.
 
+### S7g — A wider panel, and the building's links under the photo
+
+Jon's S7f dogfood, 2026-11-19. At 420 pt the panel feels cramped next to a big map. The StreetEasy page,
+which is the page you open most, has no button at all, and the website is hidden in the ellipsis menu.
+
+1. **The panel is twice as wide, up to what the map can spare.** On regular width the panel's target
+   width is 840 pt (S7f's 420, doubled). Clamp it so at least 360 pt of map stays visible beside it:
+   `width = max(420, min(840, mapWidth − 24 − 360))`, where `mapWidth` is the home map's width, read
+   with `onGeometryChange` (not a `GeometryReader` wrapping the map). That gives 840 pt on a 13" iPad
+   in landscape, about 810 pt on an 11" in landscape and about 450 pt in portrait. The map's
+   `.safeAreaPadding(.trailing, …)` follows the same number, width + 12, instead of the fixed 432. A
+   Split View resize re-clamps it live. Everything else about the panel (inset, corner radius, shadow,
+   transition, swapping in place) stays as S7f built it. Compact width keeps today's sheet.
+2. **Two link buttons under the photo.** Directly below the gallery, in both the panel and the
+   compact sheet, put a row of two equal-width bordered buttons: **Website** and **StreetEasy**, each
+   with a trailing `arrow.up.right`. Each opens its validated link (`buildingWebsiteURL`,
+   `streetEasyPageURL`, already in `BuildingDetailSheet`) with `@Environment(\.openURL)`, so it leaves
+   the app. As in S7f, a StreetEasy link may open the StreetEasy app if it's installed. That's fine.
+   - **A missing link becomes the way to add it.** With no valid link, that button reads "Add website"
+     or "Add StreetEasy", has no arrow, and opens Edit links. It is never disabled, and it never
+     disappears, so the row's layout doesn't jump from building to building.
+   - The row sits in the gallery's horizontal padding (20 pt) and scrolls away with nothing, the same
+     as the gallery. It does not go inside the `List`.
+3. **The ellipsis menu loses "Open building website".** `BuildingDetailActionsMenu` keeps "Choose hero
+   image" (still disabled with its hint when there's no website) and "Edit links". Remove the
+   `onOpenWebsite` parameter from it and from `BuildingDetailPanelHeader`, and route the new Website
+   button through the existing `openBuildingSite()`.
+
+No schema, sync or `UrbaneLibrary` change. Rent rows keep showing their source host as text; making
+them tappable is out of this slice.
+
+**Done when:** the gate passes. Device gate on the iPad: in landscape, tap a building marker. The
+panel is about twice S7f's width and the map controls stay clear of it. Rotate to portrait with the
+panel open: it narrows and a strip of map stays visible. Website and StreetEasy under the photo open
+outside the app. On a building with no StreetEasy link, "Add StreetEasy" opens Edit links, and after
+saving one the button becomes StreetEasy. The ellipsis menu has no "Open building website". On the
+iPhone, the sheet shows the same two buttons.
+
 ### S8a — Two opinions, on one device
 
 The opinion half of the old S8, with sync still off. It needs no schema change: `people` and `reactions`
@@ -440,6 +478,9 @@ stays here, so it survives the swap.
 - **Dispatch 6d:** S7f, building detail beside the map and links in Safari, from the first
   TestFlight dogfood (Jon, 2026-11-18), ahead of S9.
   **Briefs:** docs/milestones/M1-browse.md §S7f
+- **Dispatch 6e:** S7g, a wider panel and the building's links under the photo, from the S7f
+  dogfood (Jon, 2026-11-19), ahead of S9.
+  **Briefs:** docs/milestones/M1-browse.md §S7g
 - **Dispatch 7:** S9.
   **Briefs:** docs/milestones/M1-browse.md §S9, docs/decisions/0004-words-are-ours.md
 
@@ -457,6 +498,7 @@ stays here, so it survives the swap.
 - [x] S7d — Read StreetEasy's unit cards without the model
 - [x] S7e — Satellite 3D on the home map
 - [x] S7f — Building detail beside the map, links in Safari
+- [ ] S7g — A wider panel, and the building's links under the photo
 - [x] S8a — Two opinions, on one device
 - [x] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"
