@@ -72,15 +72,16 @@ struct BuildingDetailSheet: View {
           onClose: onClose
         )
       }
-      gallery
-      HStack(spacing: 12) {
-        buildingLinkButton(title: "Website", url: buildingWebsiteURL, open: openBuildingSite)
-        buildingLinkButton(title: "StreetEasy", url: streetEasyPageURL) {
-          if let streetEasyPageURL { openURL(streetEasyPageURL) }
-        }
-      }
-      .padding(.horizontal, 20)
       List {
+        Section {
+          gallery
+          HStack(spacing: 12) {
+            buildingLinkButton(title: "Website", url: buildingWebsiteURL, open: openBuildingSite)
+            buildingLinkButton(title: "StreetEasy", url: streetEasyPageURL) {
+              if let streetEasyPageURL { openURL(streetEasyPageURL) }
+            }
+          }
+        }
         Section {
           HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
@@ -310,10 +311,8 @@ struct BuildingDetailSheet: View {
       }
       .tabViewStyle(.page(indexDisplayMode: .automatic))
       .frame(maxWidth: .infinity)
-      .containerRelativeFrame(.vertical) { length, _ in length * 0.55 }
+      .containerRelativeFrame(.vertical) { length, _ in length * 0.85 }
     }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 12)
   }
 
   private var statusLabel: String {
