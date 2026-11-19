@@ -76,7 +76,6 @@ struct MapHomeView: View {
         ? .hybrid(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport]))
         : .standard(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport])))
       .mapControls { MapPitchToggle(); MapCompass() }
-      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mapWidth = $0 }
       .onMapCameraChange(frequency: .continuous) { context in
         latestMapCamera = context.camera
         stationRegion = context.region
@@ -87,6 +86,8 @@ struct MapHomeView: View {
         .trailing,
         horizontalSizeClass == .regular && selectedBuilding != nil ? buildingPanelWidth + 12 : 0
       )
+      // Measured outside the panel's safe-area padding, which would otherwise shrink the width it's sized from.
+      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mapWidth = $0 }
       .overlay(alignment: .bottom) {
         if let stationLoadError {
           Text("Subway stations couldn't be loaded: \(stationLoadError)")
