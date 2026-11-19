@@ -17,10 +17,15 @@ struct MapHomeView: View {
   @State private var selectedBuilding: Building?
   @State private var selectedNeighborhood: Neighborhood?
   @State private var camera: MapCameraPosition = .region(Self.initialRegion)
+  @State private var mapWidth: CGFloat = 0
   @State private var latestMapCamera: MapCamera?
   @State private var showingSatellite3D = false
   @State private var stationRegion: MKCoordinateRegion?
   @State private var stationCameraDistance = Double.infinity
+
+  private var buildingPanelWidth: CGFloat {
+    max(420, min(840, mapWidth - 24 - 360))
+  }
 
   var body: some View {
     NavigationStack {
@@ -71,13 +76,17 @@ struct MapHomeView: View {
         ? .hybrid(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport]))
         : .standard(elevation: .realistic, pointsOfInterest: .excluding([.publicTransport])))
       .mapControls { MapPitchToggle(); MapCompass() }
+      .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mapWidth = $0 }
       .onMapCameraChange(frequency: .continuous) { context in
         latestMapCamera = context.camera
         stationRegion = context.region
         stationCameraDistance = context.camera.distance
       }
       .ignoresSafeArea(edges: .bottom)
-      .safeAreaPadding(.trailing, horizontalSizeClass == .regular && selectedBuilding != nil ? 432 : 0)
+      .safeAreaPadding(
+        .trailing,
+        horizontalSizeClass == .regular && selectedBuilding != nil ? buildingPanelWidth + 12 : 0
+      )
       .overlay(alignment: .bottom) {
         if let stationLoadError {
           Text("Subway stations couldn't be loaded: \(stationLoadError)")
@@ -103,7 +112,7 @@ struct MapHomeView: View {
         if horizontalSizeClass == .regular, let building = selectedBuilding {
           BuildingDetailSheet(building: building, model: model, chrome: .panel { withAnimation { selectedBuilding = nil } })
             .id(building.id)
-            .frame(width: 420)
+            .frame(width: buildingPanelWidth)
             .background(.background, in: RoundedRectangle(cornerRadius: 16))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(radius: 12)

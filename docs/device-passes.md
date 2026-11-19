@@ -12,6 +12,7 @@ deployed to Production (jon-platform `docs/ios/persistence-and-sync.md` § Addin
 - **M1 S7d:** On 420 Kent, Extract rents offers #1009, #802, and #560 on the 2 beds tab; the Studio tab still recommends tapping 2 beds. ([M1](milestones/M1-browse.md))
 - **M1 S7e:** On iPad, enable Satellite 3D over Midtown; confirm the map tilts to realistic 3D, building markers and neighborhood labels remain, stations appear when zoomed in, and turning it off leaves the camera in place. ([M1](milestones/M1-browse.md))
 - **M1 S7f:** On iPad landscape, tap three markers in sequence; verify the panel swaps in place, closing restores map controls, Capture rents is page-sized, Edit links and Fix location save, the postcard opens full-screen, and website and review links open in Safari. Resize Split View between regular and compact with a building selected; verify the selection remains visible as the panel becomes a sheet and back. On iPhone, verify marker taps still show the sheet. ([M1](milestones/M1-browse.md))
+- **M1 S7g:** On iPad, check the panel width and map controls in landscape and portrait; open both links outside Urbane; confirm Add StreetEasy opens Edit links and updates after saving; confirm the ellipsis menu has no website action. On iPhone, confirm both buttons appear. ([M1](milestones/M1-browse.md))
 
 ## Held
 

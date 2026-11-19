@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-19 — M1 · S7g — A wider panel and building links under the photo (`codex/m1-s7g-building-links`)
+
+- **Result:** Widened the map-side building panel to 420–840 pt based on the home map width, preserving at least 360 pt of visible map. Added Website and StreetEasy buttons under the gallery in both layouts; missing links open Edit links, and the website action was removed from the ellipsis menu.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint (0 violations), all 77 UrbaneLibrary tests, dependency resolution, and iOS build-for-testing. check-handoff --strict passed.
+- **Owed:** M1 S7g's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-18 — Building detail beside the map, links in Safari (`m1/s7f-building-detail-panel`)
 
 - **Result:** Regular width now shows building details in a swappable map-side panel; compact width retains the detail sheet. Read-only links open externally, while capture browsers use page sizing.

@@ -68,12 +68,18 @@ struct BuildingDetailSheet: View {
           buildingName: currentBuilding.name,
           hasWebsite: buildingWebsiteURL != nil,
           onChooseHero: openHeroBrowser,
-          onOpenWebsite: openBuildingSite,
           onEditLinks: { editingLinks = true },
           onClose: onClose
         )
       }
       gallery
+      HStack(spacing: 12) {
+        buildingLinkButton(title: "Website", url: buildingWebsiteURL, open: openBuildingSite)
+        buildingLinkButton(title: "StreetEasy", url: streetEasyPageURL) {
+          if let streetEasyPageURL { openURL(streetEasyPageURL) }
+        }
+      }
+      .padding(.horizontal, 20)
       List {
         Section {
           HStack(alignment: .top) {
@@ -181,7 +187,6 @@ struct BuildingDetailSheet: View {
           BuildingDetailActionsMenu(
             hasWebsite: buildingWebsiteURL != nil,
             onChooseHero: openHeroBrowser,
-            onOpenWebsite: openBuildingSite,
             onEditLinks: { editingLinks = true }
           )
         }
@@ -340,6 +345,20 @@ struct BuildingDetailSheet: View {
   private func openBuildingSite() {
     guard let url = buildingWebsiteURL else { return }
     openURL(url)
+  }
+
+  private func buildingLinkButton(title: String, url: URL?, open: @escaping () -> Void) -> some View {
+    Button {
+      if url != nil { open() } else { editingLinks = true }
+    } label: {
+      HStack {
+        Text(url == nil ? "Add \(title)" : title)
+        Spacer(minLength: 0)
+        if url != nil { Image(systemName: "arrow.up.right") }
+      }
+      .frame(maxWidth: .infinity)
+    }
+    .buttonStyle(.bordered)
   }
 
   private func presentPendingRentReview() {

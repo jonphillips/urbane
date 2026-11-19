@@ -498,7 +498,7 @@ stays here, so it survives the swap.
 - [x] S7d — Read StreetEasy's unit cards without the model
 - [x] S7e — Satellite 3D on the home map
 - [x] S7f — Building detail beside the map, links in Safari
-- [ ] S7g — A wider panel, and the building's links under the photo
+- [x] S7g — A wider panel, and the building's links under the photo
 - [x] S8a — Two opinions, on one device
 - [x] S8b — Sync and sharing on, through Production
 - [ ] S9 — "A Tuesday here"
