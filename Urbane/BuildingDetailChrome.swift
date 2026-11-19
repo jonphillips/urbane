@@ -12,14 +12,11 @@ enum BuildingDetailChrome {
 struct BuildingDetailActionsMenu: View {
   let hasWebsite: Bool
   let onChooseHero: () -> Void
-  let onOpenWebsite: () -> Void
   let onEditLinks: () -> Void
 
   var body: some View {
     Menu {
       Button(hasWebsite ? "Choose hero image" : "Choose hero image — Add a website in Edit links", systemImage: "photo", action: onChooseHero)
-        .disabled(!hasWebsite)
-      Button(hasWebsite ? "Open building website" : "Open building website — Add a website in Edit links", systemImage: "arrow.up.right", action: onOpenWebsite)
         .disabled(!hasWebsite)
       Button("Edit links", systemImage: "link", action: onEditLinks)
     } label: {
@@ -32,7 +29,6 @@ struct BuildingDetailPanelHeader: View {
   let buildingName: String
   let hasWebsite: Bool
   let onChooseHero: () -> Void
-  let onOpenWebsite: () -> Void
   let onEditLinks: () -> Void
   let onClose: () -> Void
 
@@ -43,7 +39,6 @@ struct BuildingDetailPanelHeader: View {
       BuildingDetailActionsMenu(
         hasWebsite: hasWebsite,
         onChooseHero: onChooseHero,
-        onOpenWebsite: onOpenWebsite,
         onEditLinks: onEditLinks
       )
       Button("Close", systemImage: "xmark", action: onClose)
